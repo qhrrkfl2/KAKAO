@@ -24,3 +24,12 @@ E:\KAKAO\WindowsFormsApplication1\obj\Debug\WindowsFormsApplication1.Properties.
 E:\KAKAO\WindowsFormsApplication1\obj\Debug\WindowsFormsApplication1.csproj.GenerateResource.Cache
 E:\KAKAO\WindowsFormsApplication1\obj\Debug\WindowsFormsApplication1.exe
 E:\KAKAO\WindowsFormsApplication1\obj\Debug\WindowsFormsApplication1.pdb
+C:\Users\qhrrk\Documents\GitHub\KAKAO\KAKAO\WindowsFormsApplication1\bin\Debug\WindowsFormsApplication1.exe.config
+C:\Users\qhrrk\Documents\GitHub\KAKAO\KAKAO\WindowsFormsApplication1\bin\Debug\WindowsFormsApplication1.exe
+C:\Users\qhrrk\Documents\GitHub\KAKAO\KAKAO\WindowsFormsApplication1\bin\Debug\WindowsFormsApplication1.pdb
+C:\Users\qhrrk\Documents\GitHub\KAKAO\KAKAO\WindowsFormsApplication1\obj\Debug\WindowsFormsApplication1.csprojResolveAssemblyReference.cache
+C:\Users\qhrrk\Documents\GitHub\KAKAO\KAKAO\WindowsFormsApplication1\obj\Debug\KakaoForm.KaKaoForm.resources
+C:\Users\qhrrk\Documents\GitHub\KAKAO\KAKAO\WindowsFormsApplication1\obj\Debug\WindowsFormsApplication1.Properties.Resources.resources
+C:\Users\qhrrk\Documents\GitHub\KAKAO\KAKAO\WindowsFormsApplication1\obj\Debug\WindowsFormsApplication1.csproj.GenerateResource.Cache
+C:\Users\qhrrk\Documents\GitHub\KAKAO\KAKAO\WindowsFormsApplication1\obj\Debug\WindowsFormsApplication1.exe
+C:\Users\qhrrk\Documents\GitHub\KAKAO\KAKAO\WindowsFormsApplication1\obj\Debug\WindowsFormsApplication1.pdb

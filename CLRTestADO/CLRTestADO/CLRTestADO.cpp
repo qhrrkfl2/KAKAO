@@ -3,6 +3,7 @@
 #include  <gcroot.h>
 #include <stdio.h>
 #include <string>
+#include <iostream>
 using namespace std;
 
 // .net
@@ -19,34 +20,43 @@ using namespace System::Runtime::InteropServices;
  class DBCon {
  private:
 	 gcroot<SqlConnection^> m_conn;
-	 gcroot<SqlCommand^> m_Comm;
+	 gcroot<SqlCommand^> m_Cmd;
  public:
-	DBCon(std::wstring constr) {
-		System::String^ connstr = Marshal::PtrToStringUni((IntPtr)(void*)constr.c_str());
+	DBCon(std::string constr) {
+		System::String^ connstr = Marshal::PtrToStringAnsi((IntPtr)(void*)constr.c_str());
 		try {
 			m_conn = gcnew SqlConnection(connstr);
 			m_conn->Open();
 		}
 		catch (int exception)		{
 			// 상황에 맞게 예외처리 ㄱ
+			cout << "연결실패" << endl;
 		}
-			m_Comm = gcnew SqlCommand;
-			m_Comm->Connection = m_conn;
-		
-
+		m_Cmd = gcnew SqlCommand;
+		m_Cmd->Connection = m_conn;
 	}
-		
 	~DBCon() {
-		if (m_conn != nullptr){
+		// gcroot는 특정 연산자에 대해서 오류남(포인터변수처럼 대하면안됨)
+		// 그래서 캐스팅을 때려서 널체크 함.
+		if (static_cast<SqlConnection^>(m_conn) != nullptr)	{
 			m_conn->Close();
+			
 			delete m_conn;
 		}
 	}//생성자밑 파괴자
 //=========================================================================================================================================
  public:
+	 void testModule(std::string querryStr)	 {
+		 String^ k = Marshal::PtrToStringAnsi((IntPtr)(void*)querryStr.c_str());
+		 m_Cmd->CommandText = k;
+		 SqlDataReader ^reader = m_Cmd->ExecuteReader();
+		// do data extraction here
 
+
+		//==================================
+		 reader->Close();
+	 }
 	 
-
 };
 
 #pragma unmanaged
@@ -59,7 +69,14 @@ using namespace System::Runtime::InteropServices;
 int main()
 {
 
+	string con = "Data Source = 59.18.223.69; Initial Catalog = TestTableForConnect; User ID=vsUser;Password=1234;";
 
+	DBCon *conn = new DBCon(con);
+	
+	
+	
+	
+	conn->~DBCon();
     return 0;
 }
 

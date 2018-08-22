@@ -102,6 +102,7 @@ namespace KakaoForm
             Size szBtnlg = new Size(150, 30);
             btn_login = new DrawButton(linearCenter(this.Size.Width, this.Size.Height, 0.5f, 0.85f, szBtnlg), szBtnlg);
             btn_login.Text = "로그인";
+            btn_login.MouseClick += new MouseEventHandler(btnLoginClicked);
             //btn for join
             btn_join = new DrawButton(linearCenter(this.Size.Width, this.Size.Height, 0.5f, 0.92f, szBtnlg), szBtnlg);
             btn_join.Text = "회원가입";
@@ -229,6 +230,13 @@ namespace KakaoForm
             join.ShowDialog();
         }
 
+
+        //loginclicked
+        void btnLoginClicked(object sender , MouseEventArgs e)
+        {
+            // do something
+            System.Console.WriteLine(tbx_password.Text);
+        }
 
         // 내부함수
         private Point linearCenter(int width, int height, float xScale, float yScale, Size btnSize)

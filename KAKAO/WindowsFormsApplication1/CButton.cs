@@ -268,7 +268,14 @@ namespace CustomButton
 
 
     //helper func
+    public class HelperFunc
+    {
+         static public void passwordKeyDown(object sender, EventArgs arg)
+        {
+            TextBox tbx = (TextBox)sender;
+            tbx.PasswordChar = '*';
+        }
 
-
+    }
 }// namespace
 
