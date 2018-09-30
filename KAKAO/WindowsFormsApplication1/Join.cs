@@ -2,20 +2,38 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+//  for serialization
+using System.IO;
+using System.Runtime.InteropServices;
+//==============================
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using BorderlessForm;
 using System.Drawing;
+// socket
+using System.Net.Sockets;
 using CustomButton;
+
+
+
 namespace Formjoin
 {
     class Join : borderlessForm
     {
+        int bytesize = 256;
+        int szHeader = 8;
         enum ESameCheck
         {
             ID,
             PW
-        }
+        };
+
+        [Serializable]
+        struct TcpHeader
+        {
+            public uint msgsize;
+            public uint mode;
+        };
 
 
         bool[] samecheck = new bool[2];
@@ -61,7 +79,7 @@ namespace Formjoin
             tb_chkPassword.TabIndex = 2;
             tb_chkPassword.KeyDown += new KeyEventHandler(CustomButton.HelperFunc.passwordKeyDown);
 
-            
+
 
 
             tb_Email = new TextBox();
@@ -131,7 +149,7 @@ namespace Formjoin
             btnLoc.X += 130;
             btn_SameIDCheck.Location = btnLoc;
             btn_SameIDCheck.Size = btn_Join.Size;
-            
+
 
 
 
@@ -182,15 +200,55 @@ namespace Formjoin
 
         void btn_join_Clicked(object sender, EventArgs arg)
         {
-            if(tb_Password.Text !=  tb_chkPassword.Text)
+            if (tb_Password.Text != tb_chkPassword.Text)
             {
-                System.Console.WriteLine("일치안함");
-                System.Console.WriteLine("password:{0} chkpass:{1}", tb_Password.Text,tb_chkPassword.Text);
+                MessageBox.Show("비밀번호 확인 다시하세요", "비번체크");
             }
             else
             {
-                System.Console.WriteLine("일치함");
-                System.Console.WriteLine("password:{0} chkpass:{1}", tb_Password.Text, tb_chkPassword.Text);
+
+                TcpClient tc = new TcpClient("222.99.239.206", 7000);
+                string msg = tb_ID + " " + tb_Password;
+                Byte[] buff = Encoding.ASCII.GetBytes(msg);
+                NetworkStream stream = tc.GetStream();
+                stream.Write(buff, 0, buff.Length);
+                // 헤더 필드 8바이트
+                byte[] msgFromServer = new byte[bytesize];
+                byte[] finalMsg = new byte[bytesize];
+                int cnt = 0;
+                int arryidx = 0;
+                while (true)
+                {
+                    cnt += stream.Read(msgFromServer, 0, bytesize);
+                    if (cnt > 8)
+                    {
+                        break;
+                    }
+                }
+
+                TcpHeader tcpHeader;
+
+                byte[] header = new byte[szHeader];
+                Array.Copy(buff, header, szHeader);
+                GCHandle handle = GCHandle.Alloc(header, GCHandleType.Pinned);
+                try
+                {
+                    tcpHeader = (TcpHeader)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(TcpHeader));
+                }
+                finally
+                {
+                    handle.Free();
+                }
+
+                while(cnt > tcpHeader.msgsize)
+                {
+                    cnt += stream.Read(msgFromServer, 0, bytesize);
+                }
+
+
+
+                stream.Close();
+                tc.Close();
             }
         }
 
@@ -200,7 +258,7 @@ namespace Formjoin
 
         }
 
-       
+
         void tbIDAutoCheck()
         {
 
