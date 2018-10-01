@@ -9,10 +9,7 @@ using System.Drawing;
 
 using KakaoForm;
 // =====================================디자이너====================================================
-using System;
 using System.ComponentModel;
-using System.Drawing;
-using System.Windows.Forms;
 using System.Windows.Forms.Design;   // Note: add reference required: System.Design.dll
 // 프로젝트 add 눌러서 reference 눌러서 위 레퍼런스 추가
 // ==============================================================================================

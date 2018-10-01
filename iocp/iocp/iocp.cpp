@@ -11,6 +11,11 @@
 #include <stdlib.h>
 #include <Windows.h>
 #include <process.h>
+
+#include <sqlext.h>
+#include <sqltypes.h>
+#include <sql.h>
+
 using namespace std;
 typedef struct SockInfo {
 	SOCKET hCltSock;
@@ -24,11 +29,26 @@ typedef struct IoInfo {
 	int rwMode;
 }PER_IO_DATA, *LPPER_IO_DATA;
 
+struct TcpHeader
+{
+	unsigned int msgsize;
+	unsigned int mode;
+};
 
 unsigned WINAPI EchoThreadMain(LPVOID completionportIO);
 
 int main()
 {
+
+
+
+	std::wcout.imbue(std::locale("kor")); // 이것을 추가하면 된다.
+	std::wcin.imbue(std::locale("kor")); // cin은 이것을 추가
+
+
+
+
+
 	WSADATA wsaData;
 	SOCKET hSockLis;
 	SOCKADDR_IN addr_Srv;
@@ -53,10 +73,10 @@ int main()
 
 
 	GetSystemInfo(&sysinfo);
-	//for (int i = 0; (unsigned int)i < sysinfo.dwNumberOfProcessors; i++)
-	//{
-	//	_beginthreadex(NULL, 0, EchoThreadMain, (LPVOID)hComPort, 0, NULL);
-	//}
+	for (int i = 0; (unsigned int)i < sysinfo.dwNumberOfProcessors; i++)
+	{
+		_beginthreadex(NULL, 0, EchoThreadMain, (LPVOID)hComPort, 0, NULL);
+	}
 
 	hSockLis = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
 
@@ -64,7 +84,7 @@ int main()
 
 	memset(&addr_Srv, 0, sizeof(addr_Srv));
 	addr_Srv.sin_family = AF_INET;
-	addr_Srv.sin_port = htons(atoi("5999"));
+	addr_Srv.sin_port = htons(atoi("7000"));
 	addr_Srv.sin_addr.S_un.S_addr = htonl(INADDR_ANY);
 	// htonl  == h to network long
 	// htons == s == short
@@ -82,6 +102,7 @@ int main()
 		SOCKADDR_IN clntAdr;
 		int addrLen = sizeof(clntAdr);
 		hclntSOCK = accept(hSockLis, (SOCKADDR*)&clntAdr, &addrLen);
+		
 
 		sockInfo = new SockInfo;
 		sockInfo->hCltSock = hclntSOCK;
@@ -131,7 +152,7 @@ unsigned WINAPI EchoThreadMain(LPVOID completionportIO)
 	{
 		GetQueuedCompletionStatus(hComport, &bytesTrans, (LPDWORD)&sockInfo, (LPOVERLAPPED*)&ioInfo, INFINITE);
 		sock = sockInfo->hCltSock;
-		if (ioInfo->rwMode == 0)// read
+		if (ioInfo->rwMode == 0)// read completion
 		{
 			cout << "message received" << endl;
 			if (bytesTrans == 0 || bytesTrans == -1)
@@ -145,7 +166,14 @@ unsigned WINAPI EchoThreadMain(LPVOID completionportIO)
 			memset(&(ioInfo->overlapped), 0, sizeof(OVERLAPPED));
 			ioInfo->wsaBuf.len = bytesTrans;
 			ioInfo->rwMode = 1;
-			WSASend(sock, &(ioInfo->wsaBuf), 1, 0, (DWORD)&flag, &(ioInfo->overlapped), NULL);
+			WSASend(sock, &(ioInfo->wsaBuf), 1, 0, 0, &(ioInfo->overlapped), NULL);
+
+			wchar_t buff[256];
+			TcpHeader head;
+			memcpy(&head, ioInfo->buffer, 8);
+			memcpy(buff, &ioInfo->buffer[8], head.msgsize);
+			wcout << buff << endl;
+			
 
 			ioInfo = new IoInfo;
 			memset(ioInfo, 0, sizeof(IoInfo));
@@ -156,7 +184,7 @@ unsigned WINAPI EchoThreadMain(LPVOID completionportIO)
 
 
 		}
-		else
+		else // writecompletion
 		{
 			cout << "message sent" << endl;
 			delete ioInfo;

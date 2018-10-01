@@ -2,10 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-//  for serialization
-using System.IO;
-using System.Runtime.InteropServices;
-//==============================
+
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using BorderlessForm;
@@ -13,7 +10,7 @@ using System.Drawing;
 // socket
 using System.Net.Sockets;
 using CustomButton;
-
+using WindowsFormsApplication1;
 
 
 namespace Formjoin
@@ -27,14 +24,6 @@ namespace Formjoin
             ID,
             PW
         };
-
-        [Serializable]
-        struct TcpHeader
-        {
-            public uint msgsize;
-            public uint mode;
-        };
-
 
         bool[] samecheck = new bool[2];
         TextBox tb_NickName;
@@ -200,58 +189,61 @@ namespace Formjoin
 
         void btn_join_Clicked(object sender, EventArgs arg)
         {
+            // 띄어쓰기 등등 체크해야함.
             if (tb_Password.Text != tb_chkPassword.Text)
             {
                 MessageBox.Show("비밀번호 확인 다시하세요", "비번체크");
             }
             else
             {
+                // 서버에 정보를 보낸후,
 
-                TcpClient tc = new TcpClient("222.99.239.206", 7000);
-                string msg = tb_ID + " " + tb_Password;
-                Byte[] buff = Encoding.ASCII.GetBytes(msg);
+                TcpClient tc = new TcpClient("222.99.239.98", 7000);
+                string msg = tb_ID.Text + " " + tb_Password.Text;
+                byte[] bMsg = Encoding.Unicode.GetBytes(msg);
+                TcpHeader head = new TcpHeader();
+                head.mode = 1;
+                head.msgsize =  (uint)szHeader + (uint)bMsg.Length;
+                ByteField joinInfo = new ByteField(256);
+                joinInfo.setHeader(head);
+                joinInfo.ConcStrAfterHead(bMsg);
+
                 NetworkStream stream = tc.GetStream();
-                stream.Write(buff, 0, buff.Length);
-                // 헤더 필드 8바이트
-                byte[] msgFromServer = new byte[bytesize];
-                byte[] finalMsg = new byte[bytesize];
+                stream.Write(joinInfo.m_field, 0, joinInfo.m_size);
+
+
+
                 int cnt = 0;
-                int arryidx = 0;
-                while (true)
+                ByteField msgFromServ = new ByteField(bytesize);
+                // 헤더수신보장
+                cnt += stream.Read(msgFromServ.m_field, 0, bytesize - cnt);
+                while (cnt <= 8)
                 {
-                    cnt += stream.Read(msgFromServer, 0, bytesize);
-                    if (cnt > 8)
-                    {
-                        break;
-                    }
+                    cnt += stream.Read(msgFromServ.m_field, cnt - 1, bytesize - cnt);
                 }
 
-                TcpHeader tcpHeader;
+                int msgze = (int)msgFromServ.getheader().msgsize;
 
-                byte[] header = new byte[szHeader];
-                Array.Copy(buff, header, szHeader);
-                GCHandle handle = GCHandle.Alloc(header, GCHandleType.Pinned);
-                try
+                while(cnt <= msgze)
                 {
-                    tcpHeader = (TcpHeader)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(TcpHeader));
+                    cnt += stream.Read(msgFromServ.m_field, cnt - 1, bytesize - cnt);
                 }
-                finally
-                {
-                    handle.Free();
-                }
-
-                while(cnt > tcpHeader.msgsize)
-                {
-                    cnt += stream.Read(msgFromServer, 0, bytesize);
-                }
-
 
 
                 stream.Close();
                 tc.Close();
             }
         }
+        // mode 종류
+        // 1 회원가입 
+        // 2 로그인
+        // 3 메세지 수신
 
+
+        // 회원가입 
+        // clnt -> "아이디 비번" 구분자 ' ' 무결성은 cnt쪽에서 확인.
+        // serv -> "생성 성공 밑 중복 여부 전달"
+        // 0x1 성공 0x2 중복 0x3 알수없는 오류
 
         void btnCheckID(object sender, EventArgs arg)
         {
