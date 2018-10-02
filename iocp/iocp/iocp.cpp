@@ -16,6 +16,10 @@
 #include <sqltypes.h>
 #include <sql.h>
 
+
+
+
+
 using namespace std;
 typedef struct SockInfo {
 	SOCKET hCltSock;
@@ -35,18 +39,76 @@ struct TcpHeader
 	unsigned int mode;
 };
 
+SQLHANDLE SQLEnvHandle = NULL;
+SQLHANDLE SQLConnectionHandle = NULL;
+SQLHANDLE SQLStatementHandle = NULL;
+SQLRETURN retCode = 0;
+
 unsigned WINAPI EchoThreadMain(LPVOID completionportIO);
+
+void showSQLError(unsigned int handleType, const SQLHANDLE& handle)
+{
+	SQLCHAR SQLState[1024];
+	SQLCHAR message[1024];
+	if (SQL_SUCCESS == SQLGetDiagRec(handleType, handle, 1, SQLState, NULL, message, 1024, NULL))
+		// Returns the current values of multiple fields of a diagnostic record that contains error, warning, and status information
+		cout << "SQL driver message: " << message << "\nSQL state: " << SQLState << "." << endl;
+}
+
+
 
 int main()
 {
 
 
-
+	// 디버그 for wchar
 	std::wcout.imbue(std::locale("kor")); // 이것을 추가하면 된다.
 	std::wcin.imbue(std::locale("kor")); // cin은 이것을 추가
+	
+	if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &SQLEnvHandle))
+		// Allocates the environment
+		return -1;
 
+	if (SQL_SUCCESS != SQLSetEnvAttr(SQLEnvHandle, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0))
+		// Sets attributes that govern aspects of environments
+		return -1;
 
+	if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_DBC, SQLEnvHandle, &SQLConnectionHandle))
+		// Allocates the connection
+		return -1;
 
+	if (SQL_SUCCESS != SQLSetConnectAttr(SQLConnectionHandle, SQL_LOGIN_TIMEOUT, (SQLPOINTER)5, 0))
+		// Sets attributes that govern aspects of connections
+		return -1;
+
+	SQLCHAR retConString[1024]; // Conection string
+	switch (SQLDriverConnect(SQLConnectionHandle, NULL, (SQLCHAR*)"DRIVER={SQL Server}; SERVER=222.99.239.206, 1433; DATABASE=TestTableForConnect; UID=vsUser; PWD=1234;",
+		SQL_NTS, retConString, 1024, NULL, SQL_DRIVER_NOPROMPT))
+	{
+		// Establishes connections to a driver and a data source
+	case SQL_SUCCESS:
+		break;
+	case SQL_SUCCESS_WITH_INFO:
+		break;
+	case SQL_NO_DATA_FOUND:
+		showSQLError(SQL_HANDLE_DBC, SQLConnectionHandle);
+		retCode = -1;
+		break;
+	case SQL_INVALID_HANDLE:
+		showSQLError(SQL_HANDLE_DBC, SQLConnectionHandle);
+		retCode = -1;
+		break;
+	case SQL_ERROR:
+		showSQLError(SQL_HANDLE_DBC, SQLConnectionHandle);
+		retCode = -1;
+		break;
+	default:
+		break;
+	} //  init for ODBC
+
+	if (retCode == -1)
+		return -1;
+//===================================================================================================================================================================
 
 
 	WSADATA wsaData;
@@ -102,7 +164,7 @@ int main()
 		SOCKADDR_IN clntAdr;
 		int addrLen = sizeof(clntAdr);
 		hclntSOCK = accept(hSockLis, (SOCKADDR*)&clntAdr, &addrLen);
-		
+
 
 		sockInfo = new SockInfo;
 		sockInfo->hCltSock = hclntSOCK;
@@ -117,7 +179,7 @@ int main()
 		ioInfo->wsaBuf.len = 256;
 		ioInfo->wsaBuf.buf = ioInfo->buffer;
 		ioInfo->rwMode = 0;
-		
+
 		WSARecv(sockInfo->hCltSock, &(ioInfo->wsaBuf), 1, (LPDWORD)&readbyte, (LPDWORD)&flags, &(ioInfo->overlapped), NULL);
 
 
@@ -127,13 +189,15 @@ int main()
 
 
 
-
+	// cleanup network stuff
 	closesocket(hSockLis);
 	WSACleanup();
 
-
-
-
+	//cleanup ODBC stuff
+	SQLFreeHandle(SQL_HANDLE_STMT, SQLStatementHandle);
+	SQLDisconnect(SQLConnectionHandle);
+	SQLFreeHandle(SQL_HANDLE_DBC, SQLConnectionHandle);
+	SQLFreeHandle(SQL_HANDLE_ENV, SQLEnvHandle);
 
 	return 0;
 }
@@ -146,7 +210,6 @@ unsigned WINAPI EchoThreadMain(LPVOID completionportIO)
 	LPPER_HANDLE_DATA sockInfo;
 	LPPER_IO_DATA ioInfo;
 	DWORD flag = 0;
-
 
 	while (1)
 	{
@@ -173,7 +236,7 @@ unsigned WINAPI EchoThreadMain(LPVOID completionportIO)
 			memcpy(&head, ioInfo->buffer, 8);
 			memcpy(buff, &ioInfo->buffer[8], head.msgsize);
 			wcout << buff << endl;
-			
+
 
 			ioInfo = new IoInfo;
 			memset(ioInfo, 0, sizeof(IoInfo));
