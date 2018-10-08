@@ -198,7 +198,7 @@ namespace Formjoin
             {
                 // 서버에 정보를 보낸후,
 
-                TcpClient tc = new TcpClient("222.99.239.98", 7000);
+                TcpClient tc = new TcpClient("221.153.193.89", 7000);
                 string msg = tb_ID.Text + " " + tb_Password.Text;
                 byte[] bMsg = Encoding.Unicode.GetBytes(msg);
                 TcpHeader head = new TcpHeader();
@@ -228,6 +228,8 @@ namespace Formjoin
                 {
                     cnt += stream.Read(msgFromServ.m_field, cnt - 1, bytesize - cnt);
                 }
+
+                MessageBox.Show(msgFromServ.getMsgStr());
 
 
                 stream.Close();

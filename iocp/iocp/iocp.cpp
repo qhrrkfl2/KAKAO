@@ -2,6 +2,7 @@
 //
 
 #include "stdafx.h"
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
 
 #pragma comment(lib, "ws2_32.lib")
 #pragma once
@@ -12,12 +13,10 @@
 #include <Windows.h>
 #include <process.h>
 
-#include <sqlext.h>
-#include <sqltypes.h>
-#include <sql.h>
 
+#include "Query.h"
 
-
+#define BUFFERSIZE 256
 
 
 using namespace std;
@@ -29,8 +28,9 @@ typedef struct SockInfo {
 typedef struct IoInfo {
 	OVERLAPPED overlapped;
 	WSABUF wsaBuf;
-	char buffer[256];
+	char buffer[BUFFERSIZE];
 	int rwMode;
+	int cur;
 }PER_IO_DATA, *LPPER_IO_DATA;
 
 struct TcpHeader
@@ -39,23 +39,12 @@ struct TcpHeader
 	unsigned int mode;
 };
 
-SQLHANDLE SQLEnvHandle = NULL;
-SQLHANDLE SQLConnectionHandle = NULL;
-SQLHANDLE SQLStatementHandle = NULL;
-SQLRETURN retCode = 0;
 
-unsigned WINAPI EchoThreadMain(LPVOID completionportIO);
-
-void showSQLError(unsigned int handleType, const SQLHANDLE& handle)
-{
-	SQLCHAR SQLState[1024];
-	SQLCHAR message[1024];
-	if (SQL_SUCCESS == SQLGetDiagRec(handleType, handle, 1, SQLState, NULL, message, 1024, NULL))
-		// Returns the current values of multiple fields of a diagnostic record that contains error, warning, and status information
-		cout << "SQL driver message: " << message << "\nSQL state: " << SQLState << "." << endl;
-}
+unsigned WINAPI CompeleteThread(LPVOID completionportIO);
 
 
+
+Query* db;
 
 int main()
 {
@@ -64,51 +53,9 @@ int main()
 	// 디버그 for wchar
 	std::wcout.imbue(std::locale("kor")); // 이것을 추가하면 된다.
 	std::wcin.imbue(std::locale("kor")); // cin은 이것을 추가
-	
-	if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &SQLEnvHandle))
-		// Allocates the environment
-		return -1;
+	db = new Query;
 
-	if (SQL_SUCCESS != SQLSetEnvAttr(SQLEnvHandle, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0))
-		// Sets attributes that govern aspects of environments
-		return -1;
-
-	if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_DBC, SQLEnvHandle, &SQLConnectionHandle))
-		// Allocates the connection
-		return -1;
-
-	if (SQL_SUCCESS != SQLSetConnectAttr(SQLConnectionHandle, SQL_LOGIN_TIMEOUT, (SQLPOINTER)5, 0))
-		// Sets attributes that govern aspects of connections
-		return -1;
-
-	SQLCHAR retConString[1024]; // Conection string
-	switch (SQLDriverConnect(SQLConnectionHandle, NULL, (SQLCHAR*)"DRIVER={SQL Server}; SERVER=222.99.239.206, 1433; DATABASE=TestTableForConnect; UID=vsUser; PWD=1234;",
-		SQL_NTS, retConString, 1024, NULL, SQL_DRIVER_NOPROMPT))
-	{
-		// Establishes connections to a driver and a data source
-	case SQL_SUCCESS:
-		break;
-	case SQL_SUCCESS_WITH_INFO:
-		break;
-	case SQL_NO_DATA_FOUND:
-		showSQLError(SQL_HANDLE_DBC, SQLConnectionHandle);
-		retCode = -1;
-		break;
-	case SQL_INVALID_HANDLE:
-		showSQLError(SQL_HANDLE_DBC, SQLConnectionHandle);
-		retCode = -1;
-		break;
-	case SQL_ERROR:
-		showSQLError(SQL_HANDLE_DBC, SQLConnectionHandle);
-		retCode = -1;
-		break;
-	default:
-		break;
-	} //  init for ODBC
-
-	if (retCode == -1)
-		return -1;
-//===================================================================================================================================================================
+	//===================================================================================================================================================================
 
 
 	WSADATA wsaData;
@@ -137,7 +84,7 @@ int main()
 	GetSystemInfo(&sysinfo);
 	for (int i = 0; (unsigned int)i < sysinfo.dwNumberOfProcessors; i++)
 	{
-		_beginthreadex(NULL, 0, EchoThreadMain, (LPVOID)hComPort, 0, NULL);
+		_beginthreadex(NULL, 0, CompeleteThread, (LPVOID)hComPort, 0, NULL);
 	}
 
 	hSockLis = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
@@ -170,15 +117,19 @@ int main()
 		sockInfo->hCltSock = hclntSOCK;
 		memcpy(&(sockInfo->clnAdr), &clntAdr, addrLen);
 
+		// 포인터 캐스팅한뒤 역참조하면 포인터 데이터 타입 크기만큼 읽기 시작함.
+		// 위험하지만 유용함.
+
 		// 잊지말자 캐스팅은 포인터 캐스팅과 마찬가지임.
 		// 어쩃든 포인터는 4바이트니까(64비트에서는 8비트 캐스팅) DWORD로 캐스팅해서 넘긴다음에 함수안에서 다시 캐스팅해서 쓰는것
 		CreateIoCompletionPort((HANDLE)hclntSOCK, hComPort, (DWORD)sockInfo, 0);
 
 		ioInfo = new IoInfo;
 		memset(&(ioInfo->overlapped), 0, sizeof(OVERLAPPED));
-		ioInfo->wsaBuf.len = 256;
+		ioInfo->wsaBuf.len = sizeof(ioInfo->buffer);
 		ioInfo->wsaBuf.buf = ioInfo->buffer;
 		ioInfo->rwMode = 0;
+		ioInfo->cur = 0;
 
 		WSARecv(sockInfo->hCltSock, &(ioInfo->wsaBuf), 1, (LPDWORD)&readbyte, (LPDWORD)&flags, &(ioInfo->overlapped), NULL);
 
@@ -192,17 +143,12 @@ int main()
 	// cleanup network stuff
 	closesocket(hSockLis);
 	WSACleanup();
-
-	//cleanup ODBC stuff
-	SQLFreeHandle(SQL_HANDLE_STMT, SQLStatementHandle);
-	SQLDisconnect(SQLConnectionHandle);
-	SQLFreeHandle(SQL_HANDLE_DBC, SQLConnectionHandle);
-	SQLFreeHandle(SQL_HANDLE_ENV, SQLEnvHandle);
+	delete db;
 
 	return 0;
 }
 
-unsigned WINAPI EchoThreadMain(LPVOID completionportIO)
+unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 {
 	HANDLE hComport = (HANDLE)completionportIO;
 	SOCKET sock;
@@ -210,7 +156,7 @@ unsigned WINAPI EchoThreadMain(LPVOID completionportIO)
 	LPPER_HANDLE_DATA sockInfo;
 	LPPER_IO_DATA ioInfo;
 	DWORD flag = 0;
-
+	int readbyte = 0;
 	while (1)
 	{
 		GetQueuedCompletionStatus(hComport, &bytesTrans, (LPDWORD)&sockInfo, (LPOVERLAPPED*)&ioInfo, INFINITE);
@@ -225,32 +171,192 @@ unsigned WINAPI EchoThreadMain(LPVOID completionportIO)
 				delete ioInfo;
 				continue;
 			}
-
-			memset(&(ioInfo->overlapped), 0, sizeof(OVERLAPPED));
-			ioInfo->wsaBuf.len = bytesTrans;
-			ioInfo->rwMode = 1;
-			WSASend(sock, &(ioInfo->wsaBuf), 1, 0, 0, &(ioInfo->overlapped), NULL);
-
-			wchar_t buff[256];
-			TcpHeader head;
-			memcpy(&head, ioInfo->buffer, 8);
-			memcpy(buff, &ioInfo->buffer[8], head.msgsize);
-			wcout << buff << endl;
+			else if (bytesTrans + ioInfo->cur <= 8)// not tested 버퍼를 2번 나누어 받을때 제대로 받는지 검증
+			{
 
 
-			ioInfo = new IoInfo;
-			memset(ioInfo, 0, sizeof(IoInfo));
-			ioInfo->wsaBuf.len = 256;
-			ioInfo->wsaBuf.buf = ioInfo->buffer;
-			ioInfo->rwMode = 0;
-			WSARecv(sock, &(ioInfo->wsaBuf), 1, NULL, &flag, &(ioInfo->overlapped), NULL);
+				// 소켓 정보는 cp핸들에서 오는거임
+				// io정보는 wsarecv콜에서 넘긴 포인터 캐스팅하여 얻는거임.
+				ioInfo->wsaBuf.buf = &(ioInfo->buffer[bytesTrans]);
+				ioInfo->wsaBuf.len = ioInfo->wsaBuf.len - bytesTrans;
+				ioInfo->cur += bytesTrans;
+				WSARecv(sockInfo->hCltSock, &(ioInfo->wsaBuf), 1, (LPDWORD)&readbyte, (LPDWORD)&flag, &(ioInfo->overlapped), NULL);
+				continue;
+			}
+
+
+			char* head = ioInfo->buffer;
+			TcpHeader *tcphead = (TcpHeader*)head;
+			int size = tcphead->msgsize;
+			if (bytesTrans + ioInfo->cur < size)
+			{
+				int idx = bytesTrans + ioInfo->cur;
+				ioInfo->wsaBuf.buf = &(ioInfo->buffer[idx]);
+				ioInfo->wsaBuf.len = ioInfo->wsaBuf.len - bytesTrans;
+				ioInfo->cur += bytesTrans;
+
+				if (WSARecv(sockInfo->hCltSock, &(ioInfo->wsaBuf), 1, (LPDWORD)&size, (LPDWORD)&flag, &(ioInfo->overlapped), NULL));
+				continue;
+			}
+
+
+			//=== 수신 보장끝 =======================================================================================================================//
+
+			if (tcphead->mode == 1) // 회원가입요청
+			{
+				wchar_t* buff = (wchar_t*)&ioInfo->buffer[8];
+				wchar_t ID[16];
+				wchar_t pass[16];
+				memset(ID, 0, sizeof(ID));
+				memset(pass, 0, sizeof(pass));
+				int idx = 0;
+				for (int i = 0; i < BUFFERSIZE; i++)
+				{
+					if (buff[i] != L' ')
+						ID[i] = buff[i];
+					else
+					{
+						idx = i + 1;
+						break;
+					}
+				}
+				int k = 0;
+				while (buff[idx] != L'\0')
+				{
+					pass[k++] = buff[idx++];
+				}
+
+				// db 요청 회원가입
+				if (db->JoinProcess(ID, pass))
+				{
+					//성공T
+					TcpHeader JoinSuccess;
+					JoinSuccess.mode = 100;
+					JoinSuccess.msgsize = 18;
+					wchar_t msg[] = L"가입성공!";
+					wchar_t head[4];// 8바이트;
+					memcpy(head, &JoinSuccess, sizeof(TcpHeader));
+					wchar_t temp[256];
+					memset(temp, 0, sizeof(temp));
+					for (int i = 0; i < 4; i++)
+					{
+						temp[i] = head[i];
+					}
+					for (int i = 0; i < 5; i++)
+					{
+						temp[i + 4] = msg[i];
+					}
+
+
+
+					IoInfo* forwritecomp = new IoInfo;
+					memset(forwritecomp, 0, sizeof(IoInfo));
+
+					memcpy(forwritecomp->buffer, temp, sizeof(msg) + sizeof(head));
+
+					forwritecomp->rwMode = 1;
+					forwritecomp->wsaBuf.buf = forwritecomp->buffer;
+					forwritecomp->wsaBuf.len = BUFFERSIZE;
+
+					WSASend(sockInfo->hCltSock, &(forwritecomp->wsaBuf), 1, 0, 0, &(forwritecomp->overlapped), NULL);
+					continue;
+				}
+				else
+				{
+					TcpHeader joinFail;
+					joinFail.mode = 101;
+					joinFail.msgsize = 18;
+					wchar_t msg[] = L"가입실패!";
+					wchar_t head[4];// 8바이트;
+					memcpy(head, &joinFail, sizeof(TcpHeader));
+					wchar_t temp[256];
+					memset(temp, 0, sizeof(temp));
+					for (int i = 0; i < 4; i++)
+					{
+						temp[i] = head[i];
+					}
+					for (int i = 0; i < 5; i++)
+					{
+						temp[i + 4] = msg[i];
+					}
+
+
+
+					IoInfo* forwritecomp = new IoInfo;
+					memset(forwritecomp, 0, sizeof(IoInfo));
+
+					memcpy(forwritecomp->buffer, temp, sizeof(msg) + sizeof(head));
+
+					forwritecomp->rwMode = 1;
+					forwritecomp->wsaBuf.buf = forwritecomp->buffer;
+					forwritecomp->wsaBuf.len = BUFFERSIZE;
+
+					WSASend(sockInfo->hCltSock, &(forwritecomp->wsaBuf), 1, 0, 0, &(forwritecomp->overlapped), NULL);
+					continue;
+					//실패
+				}
+			}// end of join process
+
+			if (tcphead->mode == 2)// login // 이미 메세지는 받았고 헤드를 분석하여 받을만큼의 길이를 확인하였다.
+			{
+				wchar_t* buff = (wchar_t*)&ioInfo->buffer[8];
+				wchar_t ID[16];
+				wchar_t pass[16];
+				memset(ID, 0, sizeof(ID));
+				memset(pass, 0, sizeof(pass));
+				int idx = 0;
+				for (int i = 0; i < BUFFERSIZE; i++)
+				{
+					if (buff[i] != L' ')
+						ID[i] = buff[i];
+					else
+					{
+						idx = i + 1;
+						break;
+					}
+				}
+				int k = 0;
+				while (buff[idx] != L'\0')
+				{
+					pass[k++] = buff[idx++];
+				}
+
+				if (db->LoginProcess(ID, pass))
+				{
+					TcpHeader loginHead;
+					loginHead.mode = 200;
+					loginHead.msgsize = 8;
+					IoInfo* io;
+					makeDefaultIOInfo(1, &io);
+					memcpy(io->buffer, &loginHead, sizeof(TcpHeader));
+					WSASend(sock, &(io->wsaBuf), 1, 0, 0, &(io->overlapped), NULL);
+				} // 로그인성공
+				else
+				{
+					TcpHeader loginHead;
+					loginHead.mode = 201;
+					loginHead.msgsize = 8;
+					IoInfo* io;
+					makeDefaultIOInfo(1, &io);
+					memcpy(io->buffer, &loginHead, sizeof(TcpHeader));
+					WSASend(sock, &(io->wsaBuf), 1, 0, 0, &(io->overlapped), NULL);
+				} // 실패
+				continue;
+			}// end of login
+
+
 
 
 		}
-		else // writecompletion
+		else if (ioInfo->rwMode == 1) // writecompletion
 		{
 			cout << "message sent" << endl;
 			delete ioInfo;
+		}
+		else
+		{
+			delete ioInfo;
+			cout << "이상한 메세지를 받음" << endl;
 		}
 
 	}
@@ -260,4 +366,24 @@ unsigned WINAPI EchoThreadMain(LPVOID completionportIO)
 
 
 	return 0;
+}
+// 100 성공
+// 101 실패
+// 200 로그인성공
+// 201 로그인실패
+
+
+void makeDefaultIOInfo(int mode, IoInfo **IoinfoOut)
+{
+	IoInfo* io = new IoInfo;
+	memset(io, 0, sizeof(IoInfo));
+	io->rwMode = mode;
+	io->wsaBuf.buf = io->buffer;
+	io->wsaBuf.len = BUFFERSIZE;
+	*IoinfoOut = io;
+}
+
+void packMSG(wchar_t* head, wchar_t* msg, int msgsize, wchar_t* buff, int buffsize)
+{
+
 }

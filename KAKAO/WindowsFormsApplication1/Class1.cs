@@ -77,7 +77,7 @@ namespace WindowsFormsApplication1
         // test 완료
         public void fieldConcatenate(string add)
         {
-            byte[] bMsg = Encoding.UTF8.GetBytes(add);
+            byte[] bMsg = Encoding.Unicode.GetBytes(add);
             int len = bMsg.Length;
             if (m_index + len >= m_size)
                 throw new System.InvalidOperationException("out of field range");
@@ -127,7 +127,12 @@ namespace WindowsFormsApplication1
 
         public string getMsgStr()
         {
-            string strmsg = Encoding.UTF8.GetString(m_field, (int)m_headsize, (int)(m_index - m_headsize));
+            
+            if(m_index==0)
+            {
+                m_index = (int)this.getheader().msgsize;
+            }
+            string strmsg = Encoding.Unicode.GetString(m_field, (int)m_headsize, (int)(m_index - m_headsize));
             return strmsg;
         }
     }

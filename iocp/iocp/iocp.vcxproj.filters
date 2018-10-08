@@ -24,7 +24,7 @@
     <ClInclude Include="targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="QueryMaker.h">
+    <ClInclude Include="Query.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -35,7 +35,7 @@
     <ClCompile Include="iocp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="QueryMaker.cpp">
+    <ClCompile Include="Query.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
