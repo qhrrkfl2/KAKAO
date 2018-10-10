@@ -12,13 +12,13 @@ using System.Runtime.InteropServices;
 namespace WindowsFormsApplication1
 {
     // 메시지 사이즈는 헤더를 포함한 길이이다!
-    struct TcpHeader
+   public struct TcpHeader
     {
         public uint msgsize;
         public uint mode;
     };
 
-    class ByteField
+    public class ByteField
     {
         public byte[] m_field;
         //public uint m_index;
@@ -100,6 +100,7 @@ namespace WindowsFormsApplication1
                 throw new System.InvalidOperationException("out of field range");
             Array.Copy(bMsg, 0, m_field, (int)m_headsize, (int)bMsg.Length);
             m_index = bMsg.Length + m_headsize;
+
         }
 
         // 헤더 뒤로 데이터 뒤집어씀.
@@ -124,7 +125,13 @@ namespace WindowsFormsApplication1
             this.setHeader(head);
         }
 
-
+        public void setHeadLenByIndex()
+        {
+            TcpHeader head = new TcpHeader();
+            head.mode = this.getheader().mode;
+            head.msgsize = (uint)this.m_index;
+            this.setHeader(head);
+        }
         public string getMsgStr()
         {
             

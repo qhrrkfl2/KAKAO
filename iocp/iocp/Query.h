@@ -20,6 +20,7 @@ class Query
 	SQLHANDLE SQLConnectionHandle;
 	SQLHANDLE SQLStatementHandle;
 	SQLHANDLE SQLStatementLogin;
+	SQLHANDLE SQLStatementGetFriend;
 	SQLRETURN retCode;
 	wchar_t* tablename;
 	
@@ -30,6 +31,7 @@ public:
 	bool checkId(wchar_t* id);
 	bool JoinProcess(wchar_t* id, wchar_t* pass);
 	bool LoginProcess(wchar_t* id, wchar_t* pass);
+	wstring getFriendList(wchar_t* id);
 	Query();
 	~Query();
 };

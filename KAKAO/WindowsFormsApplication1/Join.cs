@@ -232,9 +232,11 @@ namespace Formjoin
                 MessageBox.Show(msgFromServ.getMsgStr());
 
 
-                stream.Close();
                 tc.Close();
+                stream.Close();
+                
             }
+            this.Dispose(true);
         }
         // mode 종류
         // 1 회원가입 

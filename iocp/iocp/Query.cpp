@@ -52,38 +52,93 @@ bool Query::JoinProcess(wchar_t * id, wchar_t * pass)
 
 bool Query::LoginProcess(wchar_t * id, wchar_t * pass)
 {
+	bool retcode = false;
+	bool rstCode = false;
+	if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_STMT, SQLConnectionHandle, &SQLStatementLogin))
+	{
+		print("로그인 스테이트먼트 핸들 얻기 실패");
+	}
 	wstring sId = id;
 	wstring sPass = pass;
+	sId = L"'" + sId + L"'";
+	sPass = L"'" + sPass +L"'";
 	//SELECT * from Tb_Member where ID = '123' AND [password] = '123' ;
-	wstring sQuery = L"SELECT * FROM Tb_Member WHERE ID = " + sId + L"AND" L"[password] = " + sPass;
+	wstring sQuery = L"SELECT * FROM Tb_Member WHERE ID = " + sId + L"AND [password] = " + sPass;
 	if (SQL_SUCCESS != SQLExecDirectW(SQLStatementLogin, (SQLWCHAR*)(wchar_t*)sQuery.data(), SQL_NTS))
 	{
 		showSQLError(SQL_HANDLE_STMT, SQLStatementLogin);
-		return false;
+		retcode = false;
 	}
 	else
 	{
 		if (SQLFetch(SQLStatementLogin) == SQL_SUCCESS)
 		{
+			rstCode = true;
+		}
+		else
+		{
+			retcode = false;
+		}
+
+		SQLCloseCursor(SQLStatementLogin);
+		SQLFreeHandle(SQL_HANDLE_STMT, SQLStatementLogin);
+
+		if (rstCode) // 쿼리된 결과가 있다 -> 아이디 비번 맞음.
+		{
+			SQLHANDLE setOnline;
+			SQLAllocHandle(SQL_HANDLE_STMT, SQLConnectionHandle, &setOnline);
 			sQuery.empty();
-			sQuery = L"UPDATE Tb_Member SET [online] = 1";
+			sQuery = L"UPDATE Tb_Member SET [online] = 1 where ID =" + sId;
 			if (SQL_SUCCESS != SQLExecDirectW(SQLStatementLogin, (SQLWCHAR*)(wchar_t*)sQuery.data(), SQL_NTS))
 			{
 				showSQLError(SQL_HANDLE_STMT, SQLStatementLogin);
-				return false;
+				retcode = false;
 			}
 			else
 			{
-				return true;
+				retcode = true;
 			}
+
+			SQLCloseCursor(setOnline);
+			SQLFreeHandle(SQL_HANDLE_STMT, setOnline);
 		}
 	}
-
-	return false;
+	
+	return retcode;
 }
 
+wstring Query::getFriendList(wchar_t * id)
+{
 
 
+	wstring sFriend;
+	wstring sId = id;
+	sId = L"'" + sId + L"'";
+	if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_STMT, SQLConnectionHandle, &SQLStatementGetFriend))
+	{
+		print("alloc getFriendhandle FAIL");
+	}
+
+	wstring sQuery = L"SELECT * FROM Friends WHERE ID = " + sId;
+	if (SQL_SUCCESS != SQLExecDirectW(SQLStatementGetFriend, (SQLWCHAR*)(wchar_t*)sQuery.data(), SQL_NTS))
+	{
+		showSQLError(SQL_HANDLE_STMT, SQLStatementGetFriend);
+	}
+	else
+	{
+		wchar_t DFriend[12];
+		while (SQLFetch(SQLStatementGetFriend) == SQL_SUCCESS)
+		{
+			SQLGetData(SQLStatementGetFriend, 2, SQL_C_WCHAR, &DFriend, sizeof(DFriend), NULL);
+			wstring name = DFriend;
+			sFriend += name;
+		}
+
+	}
+	SQLCloseCursor(SQLStatementGetFriend);
+	SQLFreeHandle(SQL_HANDLE_STMT, SQLStatementGetFriend);
+	return sFriend;
+}
 
 
 
@@ -133,6 +188,8 @@ Query::Query()
 	if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_STMT, SQLConnectionHandle, &SQLStatementLogin))
 		print("alloc statementLogin FAIL");
 
+
+
 }
 
 
@@ -140,6 +197,7 @@ Query::~Query()
 {
 	SQLFreeHandle(SQL_HANDLE_STMT, SQLStatementHandle);
 	SQLFreeHandle(SQL_HANDLE_STMT, SQLStatementLogin);
+	
 	
 	SQLDisconnect(SQLConnectionHandle);
 	SQLFreeHandle(SQL_HANDLE_DBC, SQLConnectionHandle);

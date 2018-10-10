@@ -5,7 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{99DC9096-4E1E-4269-A69A-9F5CBDFB793D}</ProjectGuid>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>WindowsFormsApplication1</RootNamespace>
     <AssemblyName>WindowsFormsApplication1</AssemblyName>
@@ -71,7 +71,13 @@
     <Compile Include="CButton.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="ChatRoomForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Class1.cs" />
+    <Compile Include="profileForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Join.cs">
       <SubType>Form</SubType>
     </Compile>

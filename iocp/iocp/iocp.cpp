@@ -41,9 +41,7 @@ struct TcpHeader
 
 
 unsigned WINAPI CompeleteThread(LPVOID completionportIO);
-
-
-
+void makeDefaultIOInfo(int mode, IoInfo **IoinfoOut);
 Query* db;
 
 int main()
@@ -126,6 +124,7 @@ int main()
 
 		ioInfo = new IoInfo;
 		memset(&(ioInfo->overlapped), 0, sizeof(OVERLAPPED));
+		memset(ioInfo->buffer, 0, sizeof(ioInfo->buffer));
 		ioInfo->wsaBuf.len = sizeof(ioInfo->buffer);
 		ioInfo->wsaBuf.buf = ioInfo->buffer;
 		ioInfo->rwMode = 0;
@@ -164,6 +163,7 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 		if (ioInfo->rwMode == 0)// read completion
 		{
 			cout << "message received" << endl;
+			cout << bytesTrans << endl;
 			if (bytesTrans == 0 || bytesTrans == -1)
 			{
 				closesocket(sock);
@@ -174,7 +174,7 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 			else if (bytesTrans + ioInfo->cur <= 8)// not tested 버퍼를 2번 나누어 받을때 제대로 받는지 검증
 			{
 
-
+				cout << "적게받음" << endl;
 				// 소켓 정보는 cp핸들에서 오는거임
 				// io정보는 wsarecv콜에서 넘긴 포인터 캐스팅하여 얻는거임.
 				ioInfo->wsaBuf.buf = &(ioInfo->buffer[bytesTrans]);
@@ -190,6 +190,7 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 			int size = tcphead->msgsize;
 			if (bytesTrans + ioInfo->cur < size)
 			{
+				cout << "헤더받고 난뒤 적게받음" << endl;
 				int idx = bytesTrans + ioInfo->cur;
 				ioInfo->wsaBuf.buf = &(ioInfo->buffer[idx]);
 				ioInfo->wsaBuf.len = ioInfo->wsaBuf.len - bytesTrans;
@@ -256,7 +257,7 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 
 					forwritecomp->rwMode = 1;
 					forwritecomp->wsaBuf.buf = forwritecomp->buffer;
-					forwritecomp->wsaBuf.len = BUFFERSIZE;
+					forwritecomp->wsaBuf.len = JoinSuccess.msgsize;
 
 					WSASend(sockInfo->hCltSock, &(forwritecomp->wsaBuf), 1, 0, 0, &(forwritecomp->overlapped), NULL);
 					continue;
@@ -289,7 +290,7 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 
 					forwritecomp->rwMode = 1;
 					forwritecomp->wsaBuf.buf = forwritecomp->buffer;
-					forwritecomp->wsaBuf.len = BUFFERSIZE;
+					forwritecomp->wsaBuf.len = joinFail.msgsize;
 
 					WSASend(sockInfo->hCltSock, &(forwritecomp->wsaBuf), 1, 0, 0, &(forwritecomp->overlapped), NULL);
 					continue;
@@ -325,10 +326,15 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 				{
 					TcpHeader loginHead;
 					loginHead.mode = 200;
-					loginHead.msgsize = 8;
+					wstring sfriend =db->getFriendList(ID);
+					loginHead.msgsize = 8 + sfriend.size()*2;
+
 					IoInfo* io;
 					makeDefaultIOInfo(1, &io);
+					io->rwMode = 1;
 					memcpy(io->buffer, &loginHead, sizeof(TcpHeader));
+					memcpy(&io->buffer[8], sfriend.data(), sfriend.size()*2);
+					io->wsaBuf.len = loginHead.msgsize;
 					WSASend(sock, &(io->wsaBuf), 1, 0, 0, &(io->overlapped), NULL);
 				} // 로그인성공
 				else
@@ -339,13 +345,14 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 					IoInfo* io;
 					makeDefaultIOInfo(1, &io);
 					memcpy(io->buffer, &loginHead, sizeof(TcpHeader));
+					io->wsaBuf.len = 8;
 					WSASend(sock, &(io->wsaBuf), 1, 0, 0, &(io->overlapped), NULL);
 				} // 실패
 				continue;
 			}// end of login
 
 
-
+			cout << "이상한 메세지를 받음" << endl;
 
 		}
 		else if (ioInfo->rwMode == 1) // writecompletion
@@ -361,7 +368,7 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 
 	}
 
-
+	cout << "닿으면 안되는 부분" << endl;
 
 
 

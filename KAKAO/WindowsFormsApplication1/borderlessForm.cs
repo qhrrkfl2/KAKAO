@@ -39,22 +39,21 @@ namespace BorderlessForm
     //         EnableDesignMode(uc.Employees, "Employees");
     //     }
     // }
-    class borderlessForm : Form
+   public class borderlessForm : Form
     {
 
-        private System.ComponentModel.IContainer components = null;
-        /// <summary>
-        /// Clean up any resources being used.
-        /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing && (components != null))
-            {
-                components.Dispose();
-            }
-            base.Dispose(disposing);
-        }
+        ///// <summary>
+        ///// Clean up any resources being used.
+        ///// </summary>
+        ///// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
+        //protected override void Dispose(bool disposing)
+        //{
+        //    if (disposing && (components != null))
+        //    {
+        //        components.Dispose();
+        //    }
+        //    base.Dispose(disposing);
+        //}
 
 
         // member variable =======================================================================================================================
@@ -102,6 +101,7 @@ namespace BorderlessForm
             btn_max = new SizeimgButton("resource\\btn_max_inactive_white.txt", 235, 0, 20, 20);
             btn_close.Click += new EventHandler(ClsBtnMouseClicked);
             btn_mini.Click += new EventHandler(MiniBtnMouseClicked);
+   
 
             this.Controls.Add(btn_close);
             this.Controls.Add(btn_max);

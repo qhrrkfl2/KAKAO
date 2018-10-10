@@ -1,0 +1,6 @@
+path
+sImg
+sSpr
+enter
+leave
+clicked

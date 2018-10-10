@@ -7,39 +7,20 @@ using System.Windows.Forms;
 using System.Drawing;
 using System.ComponentModel;
 using System.Data;
+using System.Net.Sockets;
 
+using WindowsFormsApplication1;
 using CustomButton;
+
 using BorderlessForm;
 using Formjoin;
+using profileForm;
+using chatRoomForm;
 namespace KakaoForm
 {
-    public class KaKaoForm : Form
+    public class KaKaoForm : borderlessForm
     {
-        private System.ComponentModel.IContainer components = null;
-        /// <summary>
-        /// Clean up any resources being used.
-        /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing && (components != null))
-            {
-                components.Dispose();
-            }
-            base.Dispose(disposing);
-        }
-        // 보더스타일이 none일때 캡션힛 메세지 받는법 선언들===================================================
-        [System.Runtime.InteropServices.DllImportAttribute("user32.dll")]
-        public static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
-        [System.Runtime.InteropServices.DllImportAttribute("user32.dll")]
-        public static extern bool ReleaseCapture();
-        public const int WM_NCLBUTTONDOWN = 0xA1;
-        public const int HT_CAPTION = 0x2;
-        //===================================================================================================
-        // controlls
-        SButton btn_close;
-        SButton btn_mini;
-        SButton btn_setting;
+        
         DrawButton btn_login;
         DrawButton btn_join;
 
@@ -52,11 +33,18 @@ namespace KakaoForm
         string id;
         string pass;
         // init here
-        
+        string server = "221.153.193.89";
+        int szHead = 8;
         public KaKaoForm()
         {
+          //  // for debug
+          //  Form client = new ProfileForm();
+          //  client.ShowDialog();
+          //  //==============================
+
             tbx_password = new TextBox();
             // init start
+            this.FormBorderStyle = FormBorderStyle.None;
             SuspendLayout();
             this.Size = new Size(300, 500);
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -70,13 +58,7 @@ namespace KakaoForm
             // 로그인창에 필요한 그림 그리기
             logo = Image.FromFile("resource\\img_login_img.png");
 
-            // title btn init
-            btn_close = new SButton("resource\\btn_login_close.txt", this.Size.Width - 25, 5);
-            btn_close.MouseClick += new System.Windows.Forms.MouseEventHandler(this.ClsBtnMouseClicked);
-            btn_mini = new SButton("resource\\btn_login_min.txt", this.Size.Width - 50, 5);
-            btn_mini.MouseClick += new System.Windows.Forms.MouseEventHandler(this.MiniBtnMouseClicked);
-            btn_setting = new SButton("resource\\btn_login_menu.txt", this.Size.Width - 75, 5);
-
+       
             // textbox for login
             tbx_password.Text = "비밀번호";
             tbx_password.Location = new Point(75, 377);
@@ -108,7 +90,7 @@ namespace KakaoForm
             btn_join.Text = "회원가입";
             btn_join.MouseClick += new MouseEventHandler(btnJoinClicked);
             // hit caption msg
-            this.MouseDown += new System.Windows.Forms.MouseEventHandler(this.Form1_MouseDown);
+            
 
 
 
@@ -121,36 +103,15 @@ namespace KakaoForm
 
 
             //add cotroll 
-            this.Controls.Add(btn_close);
-            this.Controls.Add(btn_mini);
-            this.Controls.Add(btn_setting);
             this.Controls.Add(tbx_password);
             this.Controls.Add(tbx_ID);
             this.Controls.Add(btn_login);
             this.Controls.Add(btn_join);
         }
 
-        // 보더스타일이 none일때 마우스로 폼 움직이는 로직.
-        private void Form1_MouseDown(object sender, MouseEventArgs e)
-        {
-            if (e.Button == MouseButtons.Left)
-            {
-                ReleaseCapture();
-                SendMessage(Handle, WM_NCLBUTTONDOWN, HT_CAPTION, 0);
-            }
-        }
+       
 
-        // events
-        // close btn event
-        private void ClsBtnMouseClicked(object sender, EventArgs arg)
-        {
-            this.Close();
-        }
-        // minimize
-        private void MiniBtnMouseClicked(object sender, EventArgs arg)
-        {
-            this.WindowState = FormWindowState.Minimized;
-        }
+      
 
         // password_event
         private void tbxPassGotFocus(object sender, EventArgs arg)
@@ -163,6 +124,7 @@ namespace KakaoForm
             }
 
         }
+
         private void tbxPassLostFocus(object sender, EventArgs arg)
         {
             TextBox tbx = (TextBox)sender;
@@ -174,6 +136,7 @@ namespace KakaoForm
                 tbx.Text = "비밀번호";
             }
         }
+
         private void tbxGetDown(object sender , EventArgs arg)
         {
             TextBox tbx = (TextBox)sender;
@@ -235,7 +198,48 @@ namespace KakaoForm
         void btnLoginClicked(object sender , MouseEventArgs e)
         {
             // do something
-            System.Console.WriteLine(tbx_password.Text);
+            TcpClient tcpClient = new TcpClient(server, 7000);
+            NetworkStream stream = tcpClient.GetStream();
+            string id  = tbx_ID.Text;
+            string password = tbx_password.Text;
+            ByteField loginmsg = new ByteField(256);
+
+            string msg = id + " " + password;
+            TcpHeader head;
+            head.mode = 2;
+            head.msgsize = 0;
+            loginmsg.setHeader(head);
+            loginmsg.ConcStrAfterHead(msg);
+            loginmsg.setHeadLenByIndex();
+
+            stream.Write(loginmsg.m_field, 0, (int)loginmsg.getheader().msgsize);
+
+            int cnt = 0;
+            ByteField msgFromServ = new ByteField(256);
+            cnt += stream.Read(msgFromServ.m_field, 0, 256 - cnt);
+            while (cnt <= 8)
+            {
+                cnt += stream.Read(msgFromServ.m_field, cnt - 1, 256 - cnt);
+            }
+
+            if(msgFromServ.getheader().mode == 200)
+            {
+
+                // 로그인 시작
+                Form client = new ProfileForm();
+                ((ProfileForm)client).initData(tbx_ID.Text, tcpClient,msgFromServ.getMsgStr());
+                
+                this.Hide();
+                client.ShowDialog();
+                tcpClient.Close();
+                stream.Close();
+                this.Close();
+            }
+            else
+            {
+                MessageBox.Show("아이디와비밀번호를 확인해주세요");
+            }
+            
         }
 
         // 내부함수
