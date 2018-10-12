@@ -33,7 +33,7 @@ namespace KakaoForm
         string id;
         string pass;
         // init here
-        string server = "221.153.193.89";
+        string server = "59.18.223.111";
         int szHead = 8;
         public KaKaoForm()
         {
@@ -229,11 +229,9 @@ namespace KakaoForm
                 Form client = new ProfileForm();
                 ((ProfileForm)client).initData(tbx_ID.Text, tcpClient,msgFromServ.getMsgStr());
                 
-                this.Hide();
                 client.ShowDialog();
-                tcpClient.Close();
                 stream.Close();
-                this.Close();
+                tcpClient.Close();
             }
             else
             {

@@ -260,7 +260,7 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 					forwritecomp->wsaBuf.len = JoinSuccess.msgsize;
 
 					WSASend(sockInfo->hCltSock, &(forwritecomp->wsaBuf), 1, 0, 0, &(forwritecomp->overlapped), NULL);
-					continue;
+					WSARecv(sock, &(ioInfo->wsaBuf), 1, (LPDWORD)&readbyte, &flag, &ioInfo->overlapped, NULL);
 				}
 				else
 				{
@@ -293,6 +293,8 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 					forwritecomp->wsaBuf.len = joinFail.msgsize;
 
 					WSASend(sockInfo->hCltSock, &(forwritecomp->wsaBuf), 1, 0, 0, &(forwritecomp->overlapped), NULL);
+					WSARecv(sock, &(ioInfo->wsaBuf), 1, (LPDWORD)&readbyte, &flag, &ioInfo->overlapped, NULL);
+
 					continue;
 					//실패
 				}
@@ -336,6 +338,7 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 					memcpy(&io->buffer[8], sfriend.data(), sfriend.size()*2);
 					io->wsaBuf.len = loginHead.msgsize;
 					WSASend(sock, &(io->wsaBuf), 1, 0, 0, &(io->overlapped), NULL);
+					WSARecv(sock, &(ioInfo->wsaBuf), 1, (LPDWORD)&readbyte, &flag, &ioInfo->overlapped, NULL);
 				} // 로그인성공
 				else
 				{
@@ -347,12 +350,15 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 					memcpy(io->buffer, &loginHead, sizeof(TcpHeader));
 					io->wsaBuf.len = 8;
 					WSASend(sock, &(io->wsaBuf), 1, 0, 0, &(io->overlapped), NULL);
+					WSARecv(sock, &(ioInfo->wsaBuf), 1, (LPDWORD)&readbyte, &flag, &ioInfo->overlapped, NULL);
 				} // 실패
 				continue;
 			}// end of login
 
 
-			cout << "이상한 메세지를 받음" << endl;
+
+
+
 
 		}
 		else if (ioInfo->rwMode == 1) // writecompletion

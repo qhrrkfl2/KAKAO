@@ -163,7 +163,7 @@ Query::Query()
 
 
 	SQLCHAR retConString[1024]; // Conection string
-	switch (SQLDriverConnect(SQLConnectionHandle, NULL, (SQLCHAR*)"DRIVER={SQL Server}; SERVER=221.153.193.89, 1433; DATABASE=Member; UID=vsUser; PWD=1234;", SQL_NTS, retConString, 1024, NULL, SQL_DRIVER_NOPROMPT)) {
+	switch (SQLDriverConnect(SQLConnectionHandle, NULL, (SQLCHAR*)"DRIVER={SQL Server}; SERVER=59.18.223.111, 1433; DATABASE=Member; UID=vsUser; PWD=1234;", SQL_NTS, retConString, 1024, NULL, SQL_DRIVER_NOPROMPT)) {
 		// Establishes connections to a driver and a data source
 	case SQL_SUCCESS:
 		break;

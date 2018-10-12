@@ -83,9 +83,15 @@ namespace profileForm
 
         private void closing(object sender , FormClosingEventArgs e)
         {
-            connection.Close();
-            stream.Close();
+
+            //If you call Close() on the client side, nothing is sent to the server to tell it that its closing,
+            //it literally just closes it self so that the client can't use it any more. The only reliable way to
+            //determine if you're still connected is to try to send data and handle the failure.
+            //If you want you could implement your own handshake agreement where when you call Close() you send
+            //a special notification to the server alerting it to the fact but there will still be times when that packet never reaches the server.
             e.Cancel = false;
+            this.stream.Close();
+            this.connection.Close();
         }
 
 
@@ -139,8 +145,10 @@ namespace profileForm
                 // this.Size = new Size(300, 500);
                 //lstCprofile.Add(new ProFileEX(new Size(300,50), new Point(0, 0), "정으니",this));
                 cnt++;
-
             }
+
+
+            //test
 
         }
 
