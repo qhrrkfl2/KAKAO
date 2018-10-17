@@ -96,9 +96,9 @@ namespace BorderlessForm
 
         void buttonforcapinit()
         {
-            btn_close = new SizeimgButton("resource\\btn_close_white.txt", 275, 0, 20, 20);
-            btn_mini = new SizeimgButton("resource\\btn_min_inactive_white.txt", 255, 0, 20, 20);
-            btn_max = new SizeimgButton("resource\\btn_max_inactive_white.txt", 235, 0, 20, 20);
+            btn_close = new SizeimgButton("resource\\btn_close_white.txt", 269, 1, 20, 20);
+            btn_mini = new SizeimgButton("resource\\btn_min_inactive_white.txt", 249, 1, 20, 20);
+            btn_max = new SizeimgButton("resource\\btn_max_inactive_white.txt", 229, 1, 20, 20);
             btn_close.Click += new EventHandler(ClsBtnMouseClicked);
             btn_mini.Click += new EventHandler(MiniBtnMouseClicked);
    
@@ -148,5 +148,9 @@ namespace BorderlessForm
         {
             this.WindowState = FormWindowState.Maximized;
         }
+
+
     }
+
+    
 }

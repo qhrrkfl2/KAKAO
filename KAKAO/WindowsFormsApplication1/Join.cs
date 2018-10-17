@@ -219,14 +219,14 @@ namespace Formjoin
                 cnt += stream.Read(msgFromServ.m_field, 0, bytesize - cnt);
                 while (cnt <= 8)
                 {
-                    cnt += stream.Read(msgFromServ.m_field, cnt - 1, bytesize - cnt);
+                    cnt += stream.Read(msgFromServ.m_field, cnt , bytesize - cnt);
                 }
 
                 int msgze = (int)msgFromServ.getheader().msgsize;
 
                 while(cnt <= msgze)
                 {
-                    cnt += stream.Read(msgFromServ.m_field, cnt - 1, bytesize - cnt);
+                    cnt += stream.Read(msgFromServ.m_field, cnt , bytesize - cnt);
                 }
 
                 MessageBox.Show(msgFromServ.getMsgStr());

@@ -1,2 +1,4 @@
-﻿  iocp.vcxproj -> C:\Users\qhrrk\Documents\GitHub\KAKAO\iocp\Debug\iocp.exe
+﻿  myHash.cpp
+c:\users\qhrrk\documents\github\kakao\iocp\iocp\myhash.cpp(6): warning C4018: '<': signed/unsigned mismatch
+  iocp.vcxproj -> C:\Users\qhrrk\Documents\GitHub\KAKAO\iocp\Debug\iocp.exe
   iocp.vcxproj -> C:\Users\qhrrk\Documents\GitHub\KAKAO\iocp\Debug\iocp.pdb (Full PDB)

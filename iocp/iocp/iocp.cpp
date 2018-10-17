@@ -1,11 +1,9 @@
 // iocp.cpp : Defines the entry point for the console application.
 //
 
-#include "stdafx.h"
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
-
-#pragma comment(lib, "ws2_32.lib")
 #pragma once
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#pragma comment(lib,"ws2_32.lib")
 #include <WinSock2.h>
 #include <iostream>
 #include <stdio.h>
@@ -13,8 +11,8 @@
 #include <Windows.h>
 #include <process.h>
 
-
 #include "Query.h"
+#include "myHash.h"
 
 #define BUFFERSIZE 256
 
@@ -23,6 +21,7 @@ using namespace std;
 typedef struct SockInfo {
 	SOCKET hCltSock;
 	SOCKADDR clnAdr;
+	wchar_t ID[12];
 }PER_HANDLE_DATA, *LPPER_HANDLE_DATA;
 
 typedef struct IoInfo {
@@ -43,7 +42,7 @@ struct TcpHeader
 unsigned WINAPI CompeleteThread(LPVOID completionportIO);
 void makeDefaultIOInfo(int mode, IoInfo **IoinfoOut);
 Query* db;
-
+myHash* hashtable;
 int main()
 {
 
@@ -52,7 +51,7 @@ int main()
 	std::wcout.imbue(std::locale("kor")); // 이것을 추가하면 된다.
 	std::wcin.imbue(std::locale("kor")); // cin은 이것을 추가
 	db = new Query;
-
+	hashtable = new myHash(1024);
 	//===================================================================================================================================================================
 
 
@@ -143,7 +142,7 @@ int main()
 	closesocket(hSockLis);
 	WSACleanup();
 	delete db;
-
+	delete hashtable;
 	return 0;
 }
 
@@ -166,6 +165,8 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 			cout << bytesTrans << endl;
 			if (bytesTrans == 0 || bytesTrans == -1)
 			{
+				wstring key = sockInfo->ID;
+				hashtable->DelElement(key);
 				closesocket(sock);
 				delete sockInfo;
 				delete ioInfo;
@@ -202,6 +203,48 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 
 
 			//=== 수신 보장끝 =======================================================================================================================//
+			if (tcphead->mode == 300) // 메세지 송수신 요청
+			{
+				wchar_t* buff = (wchar_t*)&ioInfo->buffer[8];
+				wchar_t key[12];
+				memset(key, 0, sizeof(key));
+				int cnt = 0;
+				for (cnt; cnt < 12; cnt++)
+				{
+					if (buff[cnt] != L' ')
+						key[cnt] = buff[cnt];
+					else
+					{
+						cnt++;
+						break;
+					}
+				}
+				int msgindex = 8 + cnt;
+				IoInfo* forsend;
+				makeDefaultIOInfo(1, &forsend);
+				
+
+				memcpy(forsend->buffer, &buff[msgindex], tcphead->msgsize - msgindex);
+				forsend->wsaBuf.len = tcphead->msgsize - msgindex;
+
+				SOCKET opposock = hashtable->get(key);
+
+				// 접속자에 대한 메세지 처리
+				if (opposock)
+				{
+
+				}
+				else
+				{
+					// 비접속자에 대한 메세지 처리.
+				}
+				
+				//WSASend(opposock,)
+
+				WSARecv(sock, &(ioInfo->wsaBuf), 1, (LPDWORD)&readbyte, &flag, &ioInfo->overlapped, NULL);
+				continue;
+			}
+
 
 			if (tcphead->mode == 1) // 회원가입요청
 			{
@@ -302,9 +345,10 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 
 			if (tcphead->mode == 2)// login // 이미 메세지는 받았고 헤드를 분석하여 받을만큼의 길이를 확인하였다.
 			{
+
 				wchar_t* buff = (wchar_t*)&ioInfo->buffer[8];
-				wchar_t ID[16];
-				wchar_t pass[16];
+				wchar_t ID[12];
+				wchar_t pass[12];
 				memset(ID, 0, sizeof(ID));
 				memset(pass, 0, sizeof(pass));
 				int idx = 0;
@@ -326,16 +370,21 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 
 				if (db->LoginProcess(ID, pass))
 				{
+					for (int i = 0; i < 12; i++)
+					{
+						sockInfo->ID[i] = ID[i];
+					}
+
 					TcpHeader loginHead;
 					loginHead.mode = 200;
-					wstring sfriend =db->getFriendList(ID);
-					loginHead.msgsize = 8 + sfriend.size()*2;
+					wstring sfriend = db->getFriendList(ID);
+					loginHead.msgsize = 8 + sfriend.size() * 2;
 
 					IoInfo* io;
 					makeDefaultIOInfo(1, &io);
 					io->rwMode = 1;
 					memcpy(io->buffer, &loginHead, sizeof(TcpHeader));
-					memcpy(&io->buffer[8], sfriend.data(), sfriend.size()*2);
+					memcpy(&io->buffer[8], sfriend.data(), sfriend.size() * 2);
 					io->wsaBuf.len = loginHead.msgsize;
 					WSASend(sock, &(io->wsaBuf), 1, 0, 0, &(io->overlapped), NULL);
 					WSARecv(sock, &(ioInfo->wsaBuf), 1, (LPDWORD)&readbyte, &flag, &ioInfo->overlapped, NULL);

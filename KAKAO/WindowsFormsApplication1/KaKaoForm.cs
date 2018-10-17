@@ -23,7 +23,7 @@ namespace KakaoForm
         
         DrawButton btn_login;
         DrawButton btn_join;
-
+        
 
 
         TextBox tbx_password;
@@ -33,13 +33,11 @@ namespace KakaoForm
         string id;
         string pass;
         // init here
-        string server = "59.18.223.111";
+        string server = "127.0.0.1";
         int szHead = 8;
         public KaKaoForm()
         {
           //  // for debug
-          //  Form client = new ProfileForm();
-          //  client.ShowDialog();
           //  //==============================
 
             tbx_password = new TextBox();
@@ -219,7 +217,7 @@ namespace KakaoForm
             cnt += stream.Read(msgFromServ.m_field, 0, 256 - cnt);
             while (cnt <= 8)
             {
-                cnt += stream.Read(msgFromServ.m_field, cnt - 1, 256 - cnt);
+                cnt += stream.Read(msgFromServ.m_field, cnt , 256 - cnt);
             }
 
             if(msgFromServ.getheader().mode == 200)
@@ -229,9 +227,8 @@ namespace KakaoForm
                 Form client = new ProfileForm();
                 ((ProfileForm)client).initData(tbx_ID.Text, tcpClient,msgFromServ.getMsgStr());
                 
-                client.ShowDialog();
-                stream.Close();
-                tcpClient.Close();
+                client.Show();
+                this.Hide();
             }
             else
             {

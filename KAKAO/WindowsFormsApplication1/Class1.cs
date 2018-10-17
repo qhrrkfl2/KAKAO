@@ -6,13 +6,14 @@ using System.Threading.Tasks;
 //  for serialization
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Net.Sockets;
 //==============================
-
+using CustomButton;
 
 namespace WindowsFormsApplication1
 {
     // 메시지 사이즈는 헤더를 포함한 길이이다!
-   public struct TcpHeader
+    public struct TcpHeader
     {
         public uint msgsize;
         public uint mode;
@@ -25,6 +26,8 @@ namespace WindowsFormsApplication1
         int m_index;
         public readonly int m_size;
         public int m_headsize;
+
+        public int getIndex() { return m_index; }
 
         public ByteField(int szByteLength)
         {
@@ -121,7 +124,7 @@ namespace WindowsFormsApplication1
         {
             TcpHeader head;
             head.mode = mode;
-            head.msgsize = (uint)m_field.Length;
+            head.msgsize = (uint)m_index;
             this.setHeader(head);
         }
 
@@ -134,8 +137,8 @@ namespace WindowsFormsApplication1
         }
         public string getMsgStr()
         {
-            
-            if(m_index==0)
+
+            if (m_index == 0)
             {
                 m_index = (int)this.getheader().msgsize;
             }
@@ -145,11 +148,144 @@ namespace WindowsFormsApplication1
     }
 
 
-    //내가 필요한기능
+    public class MessageReciever
+    {
 
-    // utf-8 인코딩이 영어,한글이랑 바이트수가 다르다고 판단
+        public byte[] m_field;
+        //public uint m_index;
+        int m_front;
+        int m_rear;
+        public readonly int m_size;
+        int m_emptySpace;
+        public int m_headsize;
 
 
-    // 필요한가?
-    // clean기능.(메세지필드 지워버리고 헤더를 그에 맞게 수정)
+        public MessageReciever(int size)
+        {
+            m_field = new byte[size];
+            m_size = size;
+            m_headsize = Marshal.SizeOf(typeof(TcpHeader));
+            m_front = 0;
+            m_rear = 0;
+            m_emptySpace = m_size - 1;
+        }
+
+        public TcpHeader getheader()
+        {
+            IntPtr ptr = Marshal.AllocHGlobal(m_headsize);
+            Marshal.Copy(m_field, m_rear, ptr, m_headsize);
+            TcpHeader head = (TcpHeader)Marshal.PtrToStructure(ptr, typeof(TcpHeader));
+            Marshal.FreeHGlobal(ptr);
+            return head;
+
+        }
+
+
+        void addData(int num)
+        {
+            if ((m_front + 1) % m_size != m_rear && m_emptySpace >= num)
+            {
+                m_front += num;
+                m_front = m_front % m_size;
+                m_emptySpace -= num;
+            }
+        }
+        // 남은 싸이즈
+        // MAXSIZE-(|H - T|+1)
+        // 사용 싸이즈
+        // (|h-t|+1)
+        void subData(int num)
+        {
+            if (m_front != m_rear && (m_emptySpace + num) <= (m_size - 1))
+            {
+                m_rear += num;
+                m_rear = m_rear % m_size;
+                m_emptySpace += num;
+            }
+        }
+
+        void sendMsgFromField(TcpHeader head)
+        {
+            int sz = (int)head.msgsize;
+
+            string strmsg = Encoding.Unicode.GetString(m_field, m_rear + 8, (sz - 8));
+            subData(sz);
+            string[] tok = strmsg.Split(' ');
+            string ID = tok[0];
+            string msg = tok[1];
+            if (BtnChatMemManager.getInstance().dicChatList.ContainsKey(ID))
+            {
+                ((ChatLstButton)BtnChatMemManager.getInstance().dicChatList[ID]).getMsg(msg);
+            }
+        }
+
+        int getdatalength()
+        {
+            return Math.Abs(m_rear - m_front);
+        }
+
+        // 메세지 수신
+        public void getMsgFromStream(NetworkStream stream)
+        {
+
+            int cnt = stream.Read(m_field, m_front + 1, m_emptySpace);
+            while (true)
+            {
+                addData(cnt);
+                if (getdatalength() < 8)
+                {
+                    cnt = stream.Read(m_field, m_front + 1, m_emptySpace);
+                    addData(cnt);
+                }
+                else
+                    break;
+            }
+
+            TcpHeader head = this.getheader();
+
+            while (true)
+            {
+                if (getdatalength() < head.msgsize)
+                {
+                    cnt = stream.Read(m_field, m_front + 1, m_emptySpace);
+                    addData(cnt);
+                }
+                else
+                    break;
+            }
+
+            while (head.msgsize <= this.getdatalength()) // 메세지를 2개이상 q받았을시도 처리
+            {
+                string strmsg = Encoding.Unicode.GetString(m_field, m_rear+1 + m_headsize, (int)head.msgsize-m_headsize);
+                subData((int)head.msgsize);
+                head = this.getheader();
+
+                string[] tok = strmsg.Split(' ');
+                string Id = tok[0];
+                string msg = tok[1];
+
+                if(BtnChatMemManager.getInstance().dicChatList.ContainsKey(Id))
+                {
+                    ((ChatLstButton)BtnChatMemManager.getInstance().dicChatList[Id]).getMsg(msg);
+                }
+                else
+                {
+                    // 모르는 사람이 메세지 전달하면? ㅋ
+                }
+
+
+            }
+        }
+
+    }
 }
+
+
+//내가 필요한기능
+
+// utf-8 인코딩이 영어,한글이랑 바이트수가 다르다고 판단
+
+
+// 필요한가?
+// clean기능.(메세지필드 지워버리고 헤더를 그에 맞게 수정)
+

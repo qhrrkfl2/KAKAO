@@ -6,34 +6,60 @@ using System.Threading.Tasks;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Collections;
-// file
 using System.IO;
-// for image
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
-using KakaoForm;
-using WindowsFormsApplication1;
 using System.Net.Sockets;
 //=========================디자이너 추가를 위한 네임스페이스============================
-using System;
 using System.ComponentModel;
-using System.Drawing;
-using System.Windows.Forms;
 using System.Windows.Forms.Design;   // Note: add reference required: System.Design.dll
                                      //=====================================================================================
+
+using KakaoForm;
 using chatRoomForm;
-//If you did not create the graphics object you should not dispose it, so if you function signature is protected override void OnPaint(PaintEventArgs e) you would NOT dispose e.Graphics.
-//However if you create a graphics object in the OnPaint handler you will need to dispose it.
-//General rule of thumb(and it is a rule of thumb not a law) if you did not get your object from a Graphics.FromXxxxx() you do not need to call Dispose.
+using WindowsFormsApplication1;
+
 
 
 namespace CustomButton
 {
+    struct chatingLog
+    {
+        public bool isME;
+        public string msg;
+    }
+
+    public sealed class BtnChatMemManager
+    {
+        static BtnChatMemManager instance = null;
+        public Dictionary<string, Control> dicChatList;
+        public Dictionary<string, Control> dicProfileList;
+        public Dictionary<string, Form> dicFormList;
+
+        BtnChatMemManager()
+        {
+            dicChatList = new Dictionary<string, Control>();
+            dicProfileList = new Dictionary<string, Control>();
+            dicFormList = new Dictionary<string, Form>();
+        }
+
+        public static BtnChatMemManager getInstance()
+        {
+            if (instance == null)
+            {
+                instance = new BtnChatMemManager();
+            }
+            return instance;
+        }
+
+
+
+
+    }
 
     // 멀티이미지 반응형 버튼
     public class CButton : Control
     {
-
 
         private Image bImg;
         private Image bMouseOnImage;
@@ -49,7 +75,6 @@ namespace CustomButton
             this.MouseEnter += new System.EventHandler(this.MousebuttonOn);
             this.MouseLeave += new System.EventHandler(this.MouseBtnOut);
             this.MouseClick += new System.Windows.Forms.MouseEventHandler(this.MouseClicked);
-
         }
 
         public void SetMouseOnImg(string path)
@@ -162,7 +187,6 @@ namespace CustomButton
             sprX = int.Parse(sprSize[0]);
             sprY = int.Parse(sprSize[1]);
             this.GetIdxSize(idx);
-
             SetStyle(ControlStyles.SupportsTransparentBackColor, true);
             SetStyle(ControlStyles.Opaque, true);
             this.BackColor = Color.Transparent;
@@ -404,13 +428,16 @@ namespace CustomButton
         // 보더리스-> 이 폼의 차일드
         // 맨위에 프로필사진, 옆에 이름, 아래 팬 하나 넣어서 채팅방, 옆에 바 만들고, 아래에 채팅텍스트 박스, 옆에 전송버튼
 
+        //If you did not create the graphics object you should not dispose it, so if you function signature is protected override void OnPaint(PaintEventArgs e) you would NOT dispose e.Graphics.
+        //However if you create a graphics object in the OnPaint handler you will need to dispose it.
+        //General rule of thumb(and it is a rule of thumb not a law) if you did not get your object from a Graphics.FromXxxxx() you do not need to call Dispose.
+
         string ID;
         // 미구현
         string Mention;
         Image picture;
-        Label lb_profilemention;
         //====================================
-        Label lb_name;
+        protected Point pt_Name;
         public ProfileList(Size size, Point pt, string id)
         {
 
@@ -420,27 +447,12 @@ namespace CustomButton
             ID = id;
 
 
-            // 버튼을 앵커스타일 주면 알아서 앞으로 붙는다.
-            lb_name = new Label();
-            lb_name.BorderStyle = BorderStyle.None;
-            lb_name.Size = new Size(50, 50);
-            lb_name.Location = new Point(51, 25);
-            //lb_name.Text = id;
-
-            lb_profilemention = new Label();
-            lb_profilemention.BorderStyle = BorderStyle.None;
-            lb_profilemention.Size = new Size(50, 50);
-            lb_profilemention.Location = new Point(250, 25);
 
             // test contents 정식으로 디비에서 받아올때 여기내용을 바꿀것
             picture = Image.FromFile("resource\\testprofile.png");
-            lb_name.Text = id;
-            lb_profilemention.Text = "뒤지라우";
-
+            Mention = "뒤지라우";
 
             // 선택되면 백그라운드도 바꾸면됨.
-            this.Controls.Add(lb_name);
-            this.Controls.Add(lb_profilemention);
 
         }
 
@@ -451,33 +463,185 @@ namespace CustomButton
         {
             base.OnPaint(e);
             Graphics g = e.Graphics;
-            Rectangle pos = new Rectangle(new Point(0,0), new Size(50, 50));
+            Rectangle pos = new Rectangle(new Point(0, 0), new Size(50, 50));
             g.DrawImage(picture, pos, 0, 0, 450, 600, GraphicsUnit.Pixel);
+            // Graphics.MeasureCharacterRanges(String, Font, RectangleF, StringFormat) Method
+            Font f = new Font("Arial", 12);
+            g.DrawString(ID, f, Brushes.Black, pt_Name);
+            f.Dispose();
+
         }
 
     }
+    //=====================================================================================================================================================================
+    class ChatLstButton : ProfileList
+    {
+        public string IDForCheck;
+        List<chatingLog> m_chatLog;
+        Form m_parent = null;
+        int unCheckedMsg = 0;
+        public ChatLstButton(Size sz, Point pt, string id, Form parent) : base(sz, pt, id)
+        {
+            pt_Name = new Point(50, 0);
+            IDForCheck = id;
+            m_parent = parent;
+            this.MouseDoubleClick += new MouseEventHandler(this.MouseDoubleClicked);
+            m_chatLog = new List<chatingLog>();
+        }
+
+        // chatroomform과 이 버튼과 연결고리가 필요하며, 이버튼은 창이 죽었는지 살았는지 알아야 한다.
+        private void MouseDoubleClicked(object sender, EventArgs arg)
+        {
+            string key = ((ChatLstButton)sender).IDForCheck;
+            // 폼이 죽을때 리스트에서도 없어져야함 ㅇㅇ..
+            if (BtnChatMemManager.getInstance().dicFormList.ContainsKey(key))
+            {
+               BtnChatMemManager.getInstance().dicFormList[key].Focus();
+            }
+            else
+            {
+                BtnChatMemManager.getInstance().dicFormList.Add( key , new ChatRoomForm(key));
+            }
+        }
+
+        public void getMsg(string message)
+        {
+            chatingLog data = new chatingLog();
+            data.isME = true;
+            data.msg = message;
+            m_chatLog.Add(data);
+
+            if (!BtnChatMemManager.getInstance().dicFormList.ContainsKey(IDForCheck))
+            {
+                unCheckedMsg++;
+                this.Refresh();
+            }
+            else
+            {
+                BtnChatMemManager.getInstance().dicFormList[this.IDForCheck].Refresh();
+            }
+
+        }
+
+
+        public void sendMsg(string message)
+        {
+
+            chatingLog data = new chatingLog();
+            data.isME = false;
+            data.msg = message;
+            m_chatLog.Add(data);
+        }
+
+
+
+    }
+
 
 
 
     class ProFileEX : ProfileList
     {
+        // 부모 창 사이즈 바뀐는거에 따라서 사이즈 바꾸려고 가지고 있는거임
         Form m_parent;
-        int name = 0;
+        public string IDForCheck;
         public ProFileEX(Size size, Point pt, string id, Form parent) : base(size, pt, id)
         {
             this.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.MouseDoubleClicked);
             this.m_parent = parent;
-            this.Refresh();
+            IDForCheck = id;
+            pt_Name = new Point(50, 10);
         }
 
         private void MouseDoubleClicked(object sender, EventArgs arg)
         {
+            // 생성규칙
+            // 프로파일 -> 채팅룸리스트 -> 실제폼
 
-            Form f = new ChatRoomForm();
-            f.Show();
+            string key = ((ProFileEX)sender).IDForCheck;
+
+            if (BtnChatMemManager.getInstance().dicChatList.ContainsKey(key))
+            {
+                BtnChatMemManager.getInstance().dicFormList[key].Focus();
+            }
+            else
+            {
+                //lstCprofile.Add(new ProFileEX(new Size(300, 50), new Point(0, 50 * cnt + 1), name, this));
+                int cnt = BtnChatMemManager.getInstance().dicChatList.Count;
+                Form chatroom = new ChatRoomForm(key);
+                ChatLstButton btn = new ChatLstButton(new Size(m_parent.Width, 50), new Point(0, 50 * cnt), key, m_parent);
+                chatroom.Show();
+                BtnChatMemManager.getInstance().dicChatList.Add(key, btn);
+                BtnChatMemManager.getInstance().dicFormList.Add(key, chatroom);
+            }
+
 
         }
     }
+
+
+    class showLetters 
+    {
+        delegate void drawcall(SizeF sz);
+        // 말풍선 그리는 함수
+        drawcall m_drawcall;
+        string m_text;
+        int m_width;
+        Point Loc;
+
+        public showLetters(int width, string text,Point location)
+        {
+            Loc = location;
+            m_width = width;
+            m_text = text;
+        }
+
+        public void OppoMsgOnPaint(PaintEventArgs e,Font font)
+        {
+            Graphics G = e.Graphics;
+            SizeF sz =G.MeasureString(m_text, font, m_width);
+            //m_drawcall(sz);
+            G.FillRectangle(Brushes.Yellow, new Rectangle(this.Loc, new Size((int)sz.Width,(int)sz.Height)));
+
+            G.DrawString(m_text, font, Brushes.Black, new RectangleF(this.Loc,sz));
+        }
+
+        public void myMsgOnpaint(PaintEventArgs e , Font font)
+        {
+            Graphics G = e.Graphics;
+            SizeF sz = G.MeasureString(m_text, font, m_width);
+            Point pt = new Point(this.Loc.X + (m_width - (int)sz.Width), this.Loc.Y);
+            G.FillRectangle(Brushes.White, new Rectangle(pt, new Size((int)sz.Width, (int)(sz.Height))));
+            G.DrawString(m_text, font, Brushes.Black, new RectangleF(pt, sz));
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     //helper func
@@ -491,14 +655,14 @@ namespace CustomButton
 
 
 
-        public Point getHeightCenter(Size parent, Size child)
+        static public Point getHeightCenter(Size parent, Size child)
         {
-            int half = parent.Width / 2;
-            half -= (child.Width / 2);
+            int half = parent.Height / 2;
+            half -= (child.Height / 2);
             return new Point(0, half);
         }
 
-        public Point getLinearPercentage(Point vecA, Point vecB, float percentageScale)
+        static public Point getLinearPercentage(Point vecA, Point vecB, float percentageScale)
         {
 
             float x = Math.Abs(vecA.X - vecB.X);
@@ -518,7 +682,7 @@ namespace CustomButton
             ByteField msgFromServ = field;
             // 헤더수신보장
             cnt += stream.Read(msgFromServ.m_field, 0, bytesize - cnt);
-            while (cnt <= 8)
+            while (cnt < 8)
             {
                 cnt += stream.Read(msgFromServ.m_field, cnt - 1, bytesize - cnt);
             }
@@ -530,8 +694,8 @@ namespace CustomButton
                 cnt += stream.Read(msgFromServ.m_field, cnt - 1, bytesize - cnt);
             }
         }
-
-
     }
+
+
 }// namespace
 

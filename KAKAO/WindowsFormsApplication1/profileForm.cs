@@ -9,24 +9,34 @@ using System.Drawing;
 using System.Windows.Forms;
 using CustomButton;
 using WindowsFormsApplication1;
-
+using System.Threading;
 
 namespace profileForm
 {
+    // 프로파일 전역
+    // 밑에 프로파일, 채팅룸, 채팅품
+    public class IoInfo
+    {
+        public NetworkStream stream = null;
+        public ByteField buffer;
+    }
+
     class ProfileForm : borderlessForm
     {
+
+        static Queue<string> QueDataSendPend;
         string myId;
         TcpClient connection;
         NetworkStream stream;
         Panel Pn_tab;
         SButton bn_profile;
         SButton bn_chat;
-        string getFriendList;
         List<Control> lstCprofile;
         List<Control> lstCChat;
         public ProfileForm()
         {
             this.SuspendLayout();
+            QueDataSendPend = new Queue<string>();
             // 친구목록 받아오기,
             // 오프라인 채팅 받아오기
             Pn_tab = new Panel();
@@ -35,8 +45,8 @@ namespace profileForm
             this.Pn_tab.Name = "panelTab";
             this.Pn_tab.Size = new Size(this.Size.Width, this.Size.Height - 60);
             this.Pn_tab.BackColor = Color.White;
-            bn_profile = new SButton("resource\\navi_btn_friend.txt", 0, 55);
-            bn_chat = new SButton("resource\\board_navi_btn_chat.txt", 45, 55);
+            bn_profile = new SButton("resource\\navi_btn_friend.txt", 1, 55);
+            bn_chat = new SButton("resource\\board_navi_btn_chat.txt", 46, 55);
             bn_chat.setforChatButton();
             bn_profile.setforChatButton();
             bn_profile.MouseClick += new System.Windows.Forms.MouseEventHandler(this.ChatMouseBtnClicked);
@@ -69,55 +79,48 @@ namespace profileForm
             // 버튼 레이블 쓰지말고 그냥 텍스트 그리는 클래스 하나 구현해야함.
             // this.Size = new Size(300, 500);
             //lstCprofile.Add(new ProFileEX(new Size(300,50), new Point(0, 0), "정으니",this));
-            
-            
+
             this.FormClosing += new FormClosingEventHandler(closing);
-
-
             this.Controls.Add(Pn_tab);
             this.Controls.Add(bn_profile);
             this.Controls.Add(bn_chat);
             this.ResumeLayout(false);
+
+
         }
 
 
-        private void closing(object sender , FormClosingEventArgs e)
+        private void closing(object sender, FormClosingEventArgs e)
         {
 
-            //If you call Close() on the client side, nothing is sent to the server to tell it that its closing,
-            //it literally just closes it self so that the client can't use it any more. The only reliable way to
-            //determine if you're still connected is to try to send data and handle the failure.
-            //If you want you could implement your own handshake agreement where when you call Close() you send
-            //a special notification to the server alerting it to the fact but there will still be times when that packet never reaches the server.
             e.Cancel = false;
             this.stream.Close();
             this.connection.Close();
         }
 
 
-      
 
-        private void ChatMouseBtnClicked(object sender, EventArgs arg)
+
+        private void ChatMouseBtnClicked(object sender, EventArgs arg)//탭버튼
         {
             SButton btn = (SButton)sender;
             if (btn == bn_chat)
             {
                 bn_profile.forChatAction();
                 Pn_tab.Controls.Clear();
-                for (int i = 0; i < lstCChat.Count; i++)
+                foreach (KeyValuePair<string, Control> entry in BtnChatMemManager.getInstance().dicChatList)
                 {
-                    Pn_tab.Controls.Add(lstCChat[i]);
+                    Pn_tab.Controls.Add(entry.Value);
                 }
             }
             else
             {
                 bn_chat.forChatAction();
                 Pn_tab.Controls.Clear();
-                for (int i = 0; i < lstCprofile.Count; i++)
+                foreach (KeyValuePair<string, Control> entry in BtnChatMemManager.getInstance().dicProfileList)
                 {
-                    Pn_tab.Controls.Add(lstCprofile[i]);
+                    Pn_tab.Controls.Add(entry.Value);
                 }
-
             }
         }
 
@@ -133,23 +136,57 @@ namespace profileForm
             while (true)
             {
                 idx = friendlist.IndexOf(' ');
-                if(idx == -1)
+                if (idx == -1)
                 {
                     break;
                 }
-                string name = friendlist.Substring(0,idx);
+                string name = friendlist.Substring(0, idx);
                 friendlist = friendlist.Substring(idx);
-                friendlist=friendlist.TrimStart(' ');
-                lstCprofile.Add(new ProFileEX(new Size(300,50),new Point(0,50*cnt +1),name,this));
-
+                friendlist = friendlist.TrimStart(' ');
+                BtnChatMemManager.getInstance().dicProfileList.Add(name, new ProFileEX(new Size(300, 50), new Point(0, 50 * cnt + 1), name, this));
                 // this.Size = new Size(300, 500);
                 //lstCprofile.Add(new ProFileEX(new Size(300,50), new Point(0, 0), "정으니",this));
                 cnt++;
             }
 
 
+            Thread recv = new Thread(new ThreadStart(takeMsgFromServ));
+            Thread send = new Thread(new ThreadStart(sendMsgToServ));
+            recv.Start();
+            send.Start();
             //test
 
+        }
+
+        // mustbebackground// 백그라운드로 오는 메세지를 받아뿌려주는 함수
+        void takeMsgFromServ()
+        {
+            MessageReciever MsgRvcer = new MessageReciever(4096);
+            MsgRvcer.getMsgFromStream(this.stream);
+        }
+
+        // background // 센드 블락킹으로 인한 수신 이펙트 막는거 방지를 위함.
+        void sendMsgToServ()
+        {
+            while (true)
+            {
+                if (QueDataSendPend.Count != 0)
+                {
+                    string msg = QueDataSendPend.Dequeue();
+                    ByteField sendMsg = new ByteField(256);
+                    sendMsg.ConcStrAfterHead(msg);
+                    sendMsg.setHeadFromField(300);
+
+                    stream.Write(sendMsg.m_field, 0, (int)sendMsg.getheader().msgsize);
+                }
+            }
+        }
+
+        // 
+
+        public static void pushQue(string msg)
+        {
+            QueDataSendPend.Enqueue(msg);
         }
 
 
