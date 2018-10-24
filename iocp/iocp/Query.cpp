@@ -20,34 +20,43 @@ void Query::showSQLError(unsigned int handleType, const SQLHANDLE& handle)
 // 채팅프로그램이 조인전에 아이디 확인을 강요.
 bool Query::checkId(wchar_t * id)
 {
+	bool retcode = false;
 	wstring sId = id;
 	wstring sQuery = L"SELECT ID FROM Tb_Member WHERE ID = " + sId;
 	wchar_t* query = (wchar_t*)sQuery.data();
+	SQLAllocHandle(SQL_HANDLE_STMT,SQLConnectionHandle, &SQLStatementHandle);
 
 	if (SQL_SUCCESS != SQLExecDirectW(SQLStatementHandle, (SQLWCHAR*)query, SQL_NTS));
 	this->showSQLError(SQL_HANDLE_STMT, SQLStatementHandle);
 
 	if (SQLFetch(SQLStatementHandle) == SQL_SUCCESS)
-		return true;
+		retcode = true;
 	else
-		return false;
+		retcode = false;
+	SQLCloseCursor(SQLStatementHandle);
+	SQLFreeHandle(SQL_HANDLE_STMT, SQLStatementHandle);
+	return retcode;
 }
 
 bool Query::JoinProcess(wchar_t * id, wchar_t * pass)
 {
 	wstring sId = id;
 	wstring sPass = pass;
-
+	bool retcode = false;
 	wstring sQuery = L"INSERT Tb_Member VALUES (" + sId + L"," + sPass + L", 0"+ L")";
 	wchar_t* query = (wchar_t*)sQuery.data();
-
+	SQLAllocHandle(SQL_HANDLE_STMT, SQLConnectionHandle, &SQLStatementHandle);
 	if (SQL_SUCCESS != SQLExecDirectW(SQLStatementHandle, (SQLWCHAR*)query, SQL_NTS))
 	{
 		showSQLError(SQL_HANDLE_STMT, SQLStatementHandle);
-		return false;
+		retcode = false;
 	}
 	else
-		return true;
+		retcode = true;
+	
+	SQLCloseCursor(SQLStatementHandle);
+	SQLFreeHandle(SQL_HANDLE_STMT, SQLStatementHandle);
+	return retcode;
 }
 
 bool Query::LoginProcess(wchar_t * id, wchar_t * pass)
@@ -182,14 +191,6 @@ Query::Query()
 	default:
 		break;
 	}
-
-	if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_STMT, SQLConnectionHandle, &SQLStatementHandle))
-		print("alloc statementHandle FAIL");
-	if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_STMT, SQLConnectionHandle, &SQLStatementLogin))
-		print("alloc statementLogin FAIL");
-
-
-
 }
 
 
@@ -197,11 +198,10 @@ Query::~Query()
 {
 	SQLFreeHandle(SQL_HANDLE_STMT, SQLStatementHandle);
 	SQLFreeHandle(SQL_HANDLE_STMT, SQLStatementLogin);
-	
-	
-	SQLDisconnect(SQLConnectionHandle);
 	SQLFreeHandle(SQL_HANDLE_DBC, SQLConnectionHandle);
 	SQLFreeHandle(SQL_HANDLE_ENV, SQLEnvHandle);
+	
+	SQLDisconnect(SQLConnectionHandle);
 
 	// statement 누수  테스트  할것
 }

@@ -18,12 +18,13 @@ namespace chatRoomForm
         RichTextBox rtb_chat;
         Panel pn_chat;
         Button bt_send;
-        List<showLetters> lstChatText;
+        chatList m_chatlog;
         string key;
         showLetters test;
-        public ChatRoomForm(string ID)
+        public ChatRoomForm(string ID, chatList init)
         {
-            lstChatText = new List<showLetters>();
+
+            m_chatlog = init;
             key = ID;
             bt_send = new Button();
             bt_send.Size = new Size(50, 50);
@@ -63,10 +64,8 @@ namespace chatRoomForm
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
-            Font f = new Font("Cambria", 8);
-            
-
-
+            Font f = new Font("Cambria", 10);
+            m_chatlog.drawChatballons(e, f);
             f.Dispose();
         }
 
@@ -86,6 +85,9 @@ namespace chatRoomForm
             // protocol
             // |mode = 300 | sz|firend msg|//
             string chat = rtb_chat.Text.ToString();
+            Graphics G = this.CreateGraphics();
+            m_chatlog.addChat(chat, true, G);
+            G.Dispose();
             rtb_chat.Text = "";
             StringBuilder sb =new StringBuilder( this.key);
             sb.Append(" ");

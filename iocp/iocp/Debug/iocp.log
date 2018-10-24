@@ -1,4 +1,5 @@
-﻿  myHash.cpp
-c:\users\qhrrk\documents\github\kakao\iocp\iocp\myhash.cpp(6): warning C4018: '<': signed/unsigned mismatch
+﻿  iocp.cpp
+c:\users\qhrrk\documents\github\kakao\iocp\iocp\iocp.cpp(193): warning C4018: '<': signed/unsigned mismatch
+c:\users\qhrrk\documents\github\kakao\iocp\iocp\iocp.cpp(201): warning C4390: ';': empty controlled statement found; is this the intent?
   iocp.vcxproj -> C:\Users\qhrrk\Documents\GitHub\KAKAO\iocp\Debug\iocp.exe
   iocp.vcxproj -> C:\Users\qhrrk\Documents\GitHub\KAKAO\iocp\Debug\iocp.pdb (Full PDB)

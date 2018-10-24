@@ -67,7 +67,7 @@ void myHash::DelElement(wstring key)
 	Bucket* spot = &m_bucket[index];
 	if (spot->key == key)
 	{
-		spot->key.empty();
+		spot->key.clear();
 	}
 	else
 	{

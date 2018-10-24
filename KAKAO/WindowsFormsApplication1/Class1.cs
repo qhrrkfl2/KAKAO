@@ -7,9 +7,10 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Net.Sockets;
+using System.Windows.Forms;   // Note: add reference required: System.Design.dll
+using profileForm;
 //==============================
 using CustomButton;
-
 namespace WindowsFormsApplication1
 {
     // 메시지 사이즈는 헤더를 포함한 길이이다!
@@ -147,7 +148,9 @@ namespace WindowsFormsApplication1
         }
     }
 
-
+    // 디버그 1 큐가 원하는대로 동작하는가
+    // 디버그 2 크로스 쓰레드 문제 해결
+    //=================================================================================================
     public class MessageReciever
     {
 
@@ -155,9 +158,11 @@ namespace WindowsFormsApplication1
         //public uint m_index;
         int m_front;
         int m_rear;
-        public readonly int m_size;
+        // m_size는 서큘러 큐의 실제 주소값을 계산하기 위함임..
+        public int m_size;
         int m_emptySpace;
         public int m_headsize;
+
 
 
         public MessageReciever(int size)
@@ -173,12 +178,13 @@ namespace WindowsFormsApplication1
         public TcpHeader getheader()
         {
             IntPtr ptr = Marshal.AllocHGlobal(m_headsize);
-            Marshal.Copy(m_field, m_rear, ptr, m_headsize);
+            Marshal.Copy(m_field, m_rear + 1, ptr, m_headsize);
             TcpHeader head = (TcpHeader)Marshal.PtrToStructure(ptr, typeof(TcpHeader));
             Marshal.FreeHGlobal(ptr);
             return head;
 
         }
+
 
 
         void addData(int num)
@@ -204,77 +210,117 @@ namespace WindowsFormsApplication1
             }
         }
 
-        void sendMsgFromField(TcpHeader head)
-        {
-            int sz = (int)head.msgsize;
 
-            string strmsg = Encoding.Unicode.GetString(m_field, m_rear + 8, (sz - 8));
-            subData(sz);
-            string[] tok = strmsg.Split(' ');
-            string ID = tok[0];
-            string msg = tok[1];
-            if (BtnChatMemManager.getInstance().dicChatList.ContainsKey(ID))
+        void getData(NetworkStream stream)
+        {
+            
+            if (m_emptySpace < 512)
             {
-                ((ChatLstButton)BtnChatMemManager.getInstance().dicChatList[ID]).getMsg(msg);
+                byte[] expand = new byte[m_size * 2];
+                for (int i = 0; i < m_size; i++)
+                {
+                    expand[i] = m_field[i];
+                }
+                m_field = expand;
+                m_size = m_size * 2;
+            }
+            else
+            {
+                int transbyte;
+                int cnt = this.getdatalength();
+
+                while (cnt < 8)
+                {
+                    transbyte = stream.Read(m_field, m_front + 1, this.getfieldmaxaddress() );
+                    cnt += transbyte;
+                    addData(transbyte);
+                }
+                TcpHeader head = this.getheader();
+                while (head.msgsize < cnt)
+                {
+                    transbyte = stream.Read(m_field, m_front + 1, this.getfieldmaxaddress());
+                    cnt += transbyte;
+                    addData(transbyte);
+                }
             }
         }
 
-        int getdatalength()
-        {
-            return Math.Abs(m_rear - m_front);
-        }
-
-        // 메세지 수신
-        public void getMsgFromStream(NetworkStream stream)
+        void processData()
         {
 
-            int cnt = stream.Read(m_field, m_front + 1, m_emptySpace);
-            while (true)
+            while (getdatalength() > 8) // 메세지를 2개이상 q받았을시도 처리 
             {
-                addData(cnt);
-                if (getdatalength() < 8)
+                TcpHeader head = this.getheader();
+                if(getdatalength() < head.msgsize)
                 {
-                    cnt = stream.Read(m_field, m_front + 1, m_emptySpace);
-                    addData(cnt);
-                }
-                else
                     break;
-            }
-
-            TcpHeader head = this.getheader();
-
-            while (true)
-            {
-                if (getdatalength() < head.msgsize)
-                {
-                    cnt = stream.Read(m_field, m_front + 1, m_emptySpace);
-                    addData(cnt);
                 }
-                else
-                    break;
-            }
-
-            while (head.msgsize <= this.getdatalength()) // 메세지를 2개이상 q받았을시도 처리
-            {
-                string strmsg = Encoding.Unicode.GetString(m_field, m_rear+1 + m_headsize, (int)head.msgsize-m_headsize);
+                string strmsg = Encoding.Unicode.GetString(m_field, m_rear + 1 + m_headsize, (int)head.msgsize - m_headsize);
                 subData((int)head.msgsize);
-                head = this.getheader();
 
                 string[] tok = strmsg.Split(' ');
                 string Id = tok[0];
                 string msg = tok[1];
 
-                if(BtnChatMemManager.getInstance().dicChatList.ContainsKey(Id))
+                if (BtnChatMemManager.getInstance().dicProfileList.ContainsKey(Id))
                 {
-                    ((ChatLstButton)BtnChatMemManager.getInstance().dicChatList[Id]).getMsg(msg);
+
+                    ChatLstButton btn = ((ChatLstButton)BtnChatMemManager.getInstance().dicChatList[Id]);
+                    if (btn.InvokeRequired)
+                        btn.Invoke(btn.myDelegate, msg);
+                    else
+                        btn.getMsg(msg);
+
                 }
                 else
                 {
-                    // 모르는 사람이 메세지 전달하면? ㅋ
+
+                    ProfileForm profile = (ProfileForm)BtnChatMemManager.getInstance().dicFormList["profileForm"];
+                    profile.AddButton(Id);
+
+                    ChatLstButton btn = ((ChatLstButton)BtnChatMemManager.getInstance().dicChatList[Id]);
+                    if (btn.InvokeRequired)
+                        btn.Invoke(btn.myDelegate, msg);
+                    else
+                        btn.getMsg(msg);
+
                 }
-
-
             }
+
+        }
+    
+
+        int getdatalength()
+        {
+            return (m_size - 1) - m_emptySpace;
+        }
+
+        int getfieldmaxaddress()
+        {
+            int retval = 0;
+            if(m_front > m_rear|| m_front != m_size -1|| m_front == m_rear)
+            {
+                retval = m_size  - (m_front +1);
+                // m_front == m_size -1 일경우는 어차피 입력에서 m_front+1이 되니까 상관없음. else 구문에서 처리 가능.
+            }
+            else
+            {
+                retval = m_rear - 1;
+            }
+            return retval;
+        }
+
+        // 메세지 수신
+        // 버그!!버퍼가 터질수있는 위험성이 있음.
+        public void getMsgFromStream(NetworkStream stream)
+        {
+
+            getData(stream);
+            processData();
+
+                // 1. 메세지 처리시 끝일수도있음 -> gethead시 에러
+                // 2. 메세지 처리후 헤더를 끝까지 못 받았을수도 있음 -> get head시 에러
+         
         }
 
     }

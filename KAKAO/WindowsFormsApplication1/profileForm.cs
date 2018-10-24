@@ -24,6 +24,7 @@ namespace profileForm
     class ProfileForm : borderlessForm
     {
 
+
         static Queue<string> QueDataSendPend;
         string myId;
         TcpClient connection;
@@ -31,8 +32,9 @@ namespace profileForm
         Panel Pn_tab;
         SButton bn_profile;
         SButton bn_chat;
-        List<Control> lstCprofile;
-        List<Control> lstCChat;
+        Control bn_createBTN;
+
+
         public ProfileForm()
         {
             this.SuspendLayout();
@@ -51,11 +53,9 @@ namespace profileForm
             bn_profile.setforChatButton();
             bn_profile.MouseClick += new System.Windows.Forms.MouseEventHandler(this.ChatMouseBtnClicked);
             bn_chat.MouseClick += new System.Windows.Forms.MouseEventHandler(this.ChatMouseBtnClicked);
-
-
-
-            lstCChat = new List<Control>();
-            lstCprofile = new List<Control>();
+            bn_createBTN = new Control();
+            
+            
             //버튼 만들기 // 친구목록
             // gui
             // 프로필사진 // 이름 //
@@ -85,9 +85,23 @@ namespace profileForm
             this.Controls.Add(bn_profile);
             this.Controls.Add(bn_chat);
             this.ResumeLayout(false);
-
-
+            BtnChatMemManager.getInstance().dicFormList.Add("profileForm", this);
         }
+
+
+        public void AddButton(string key)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke((MethodInvoker)delegate { AddButton(key); });
+            }
+            else
+            {
+                int cnt = BtnChatMemManager.getInstance().dicChatList.Count;
+                BtnChatMemManager.getInstance().dicChatList.Add(key, new ChatLstButton(new Size(this.Width, 50), new Point(0, 50 * cnt), key, this));
+            }
+        }
+
 
 
         private void closing(object sender, FormClosingEventArgs e)
@@ -98,8 +112,7 @@ namespace profileForm
             this.connection.Close();
         }
 
-
-
+       
 
         private void ChatMouseBtnClicked(object sender, EventArgs arg)//탭버튼
         {

@@ -41,6 +41,7 @@ struct TcpHeader
 
 unsigned WINAPI CompeleteThread(LPVOID completionportIO);
 void makeDefaultIOInfo(int mode, IoInfo **IoinfoOut);
+void packMSG(TcpHeader* varhead, wchar_t* msg, int byteMsgSize, char* buff, int bytebuffsize);
 Query* db;
 myHash* hashtable;
 int main()
@@ -79,7 +80,7 @@ int main()
 
 
 	GetSystemInfo(&sysinfo);
-	for (int i = 0; (unsigned int)i < sysinfo.dwNumberOfProcessors; i++)
+	for (int i = 0; (unsigned int)i < sysinfo.dwNumberOfProcessors ; i++)
 	{
 		_beginthreadex(NULL, 0, CompeleteThread, (LPVOID)hComPort, 0, NULL);
 	}
@@ -205,6 +206,7 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 			//=== 수신 보장끝 =======================================================================================================================//
 			if (tcphead->mode == 300) // 메세지 송수신 요청
 			{
+				
 				wchar_t* buff = (wchar_t*)&ioInfo->buffer[8];
 				wchar_t key[12];
 				memset(key, 0, sizeof(key));
@@ -219,27 +221,39 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 						break;
 					}
 				}
-				int msgindex = 8 + cnt;
-				IoInfo* forsend;
-				makeDefaultIOInfo(1, &forsend);
-				
-
-				memcpy(forsend->buffer, &buff[msgindex], tcphead->msgsize - msgindex);
-				forsend->wsaBuf.len = tcphead->msgsize - msgindex;
 
 				SOCKET opposock = hashtable->get(key);
-
+				// 받을때는 char 단위 1바이트
+				//cnt 는 2바이트 단위로 뛰어야지
+				int msgindex = 8 + cnt*2;
+				TcpHeader TcpHeadsendMsg;
+				TcpHeadsendMsg.mode = 300;
+				wstring msg;
+				msg += sockInfo->ID;
+				msg += L" ";
+				wchar_t  tempbuff[256];
+				memset(tempbuff, 0, sizeof(tempbuff));
+				memcpy(tempbuff, &(ioInfo->buffer[msgindex]), tcphead->msgsize - msgindex);
+				msg += tempbuff;
+				TcpHeadsendMsg.msgsize = msg.size() * 2 + 8;
 				// 접속자에 대한 메세지 처리
-				if (opposock)
-				{
-
-				}
-				else
-				{
-					// 비접속자에 대한 메세지 처리.
-				}
+				//if (opposock)
+				//{
+					IoInfo* iosend;
+					makeDefaultIOInfo(1, &iosend);
+					//void packMSG(TcpHeader* varhead, wchar_t* msg, int msgsize, wchar_t* buff, int buffsize)
+					packMSG(&TcpHeadsendMsg, (wchar_t*)msg.data(), (int)TcpHeadsendMsg.msgsize, iosend->buffer, BUFFERSIZE);
+					iosend->wsaBuf.len = TcpHeadsendMsg.msgsize;
+					//|head || SenderID" "MSG |
+					WSASend(opposock, &(iosend->wsaBuf), 1, 0, 0, &iosend->overlapped, NULL);
+					cout << "문자보냄" << "size:" << iosend->wsaBuf.len << endl;
+				//}
+				//else
+				//{
+				//	// 비접속자에 대한 메세지 처리.
+				//}
 				
-				//WSASend(opposock,)
+				
 
 				WSARecv(sock, &(ioInfo->wsaBuf), 1, (LPDWORD)&readbyte, &flag, &ioInfo->overlapped, NULL);
 				continue;
@@ -374,6 +388,7 @@ unsigned WINAPI CompeleteThread(LPVOID completionportIO)
 					{
 						sockInfo->ID[i] = ID[i];
 					}
+					hashtable->put(ID, sock);
 
 					TcpHeader loginHead;
 					loginHead.mode = 200;
@@ -445,7 +460,13 @@ void makeDefaultIOInfo(int mode, IoInfo **IoinfoOut)
 	*IoinfoOut = io;
 }
 
-void packMSG(wchar_t* head, wchar_t* msg, int msgsize, wchar_t* buff, int buffsize)
+void packMSG(TcpHeader* varhead, wchar_t* msg, int byteMsgSize, char* buff, int bytebuffsize)
 {
+	int headsz = sizeof(TcpHeader);
+	if (bytebuffsize >= byteMsgSize)
+	{
+		memcpy(buff, varhead, headsz);
+		memcpy(&buff[headsz], msg, byteMsgSize - headsz);
+	}
 
 }

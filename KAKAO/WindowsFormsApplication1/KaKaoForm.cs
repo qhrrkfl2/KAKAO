@@ -215,7 +215,7 @@ namespace KakaoForm
             int cnt = 0;
             ByteField msgFromServ = new ByteField(256);
             cnt += stream.Read(msgFromServ.m_field, 0, 256 - cnt);
-            while (cnt <= 8)
+            while (cnt < 8)
             {
                 cnt += stream.Read(msgFromServ.m_field, cnt , 256 - cnt);
             }

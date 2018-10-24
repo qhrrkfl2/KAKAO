@@ -1,0 +1,12 @@
+c:\users\qhrrk\documents\visual studio 2015\Projects\sockTest\sockTest\bin\Debug\sockTest.exe.config
+c:\users\qhrrk\documents\visual studio 2015\Projects\sockTest\sockTest\bin\Debug\sockTest.exe
+c:\users\qhrrk\documents\visual studio 2015\Projects\sockTest\sockTest\bin\Debug\sockTest.pdb
+c:\users\qhrrk\documents\visual studio 2015\Projects\sockTest\sockTest\obj\Debug\sockTest.csprojResolveAssemblyReference.cache
+c:\users\qhrrk\documents\visual studio 2015\Projects\sockTest\sockTest\obj\Debug\sockTest.exe
+c:\users\qhrrk\documents\visual studio 2015\Projects\sockTest\sockTest\obj\Debug\sockTest.pdb
+C:\Users\qhrrk\Documents\GitHub\KAKAO\tester\c# serv msg Gener\sockTest\bin\Debug\sockTest.exe.config
+C:\Users\qhrrk\Documents\GitHub\KAKAO\tester\c# serv msg Gener\sockTest\obj\Debug\sockTest.exe
+C:\Users\qhrrk\Documents\GitHub\KAKAO\tester\c# serv msg Gener\sockTest\obj\Debug\sockTest.pdb
+C:\Users\qhrrk\Documents\GitHub\KAKAO\tester\c# serv msg Gener\sockTest\obj\Debug\sockTest.csprojResolveAssemblyReference.cache
+C:\Users\qhrrk\Documents\GitHub\KAKAO\tester\c# serv msg Gener\sockTest\bin\Debug\sockTest.exe
+C:\Users\qhrrk\Documents\GitHub\KAKAO\tester\c# serv msg Gener\sockTest\bin\Debug\sockTest.pdb

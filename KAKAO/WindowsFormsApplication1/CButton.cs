@@ -27,9 +27,10 @@ namespace CustomButton
     {
         public bool isME;
         public string msg;
+        public showLetters showLetter;
     }
 
-    public sealed class BtnChatMemManager
+    public class BtnChatMemManager
     {
         static BtnChatMemManager instance = null;
         public Dictionary<string, Control> dicChatList;
@@ -477,16 +478,20 @@ namespace CustomButton
     class ChatLstButton : ProfileList
     {
         public string IDForCheck;
-        List<chatingLog> m_chatLog;
+        public chatList m_chatLog;
+        public delegate void DeGetMsg(string msg);
+        public DeGetMsg myDelegate;
+
         Form m_parent = null;
         int unCheckedMsg = 0;
         public ChatLstButton(Size sz, Point pt, string id, Form parent) : base(sz, pt, id)
         {
+            myDelegate = new DeGetMsg(getMsg);
             pt_Name = new Point(50, 0);
             IDForCheck = id;
             m_parent = parent;
             this.MouseDoubleClick += new MouseEventHandler(this.MouseDoubleClicked);
-            m_chatLog = new List<chatingLog>();
+            m_chatLog = new chatList();
         }
 
         // chatroomform과 이 버튼과 연결고리가 필요하며, 이버튼은 창이 죽었는지 살았는지 알아야 한다.
@@ -496,21 +501,20 @@ namespace CustomButton
             // 폼이 죽을때 리스트에서도 없어져야함 ㅇㅇ..
             if (BtnChatMemManager.getInstance().dicFormList.ContainsKey(key))
             {
-               BtnChatMemManager.getInstance().dicFormList[key].Focus();
+                BtnChatMemManager.getInstance().dicFormList[key].Focus();
             }
             else
             {
-                BtnChatMemManager.getInstance().dicFormList.Add( key , new ChatRoomForm(key));
+                BtnChatMemManager.getInstance().dicFormList.Add(key, new ChatRoomForm(key, m_chatLog));
             }
         }
 
         public void getMsg(string message)
         {
-            chatingLog data = new chatingLog();
-            data.isME = true;
-            data.msg = message;
-            m_chatLog.Add(data);
-
+            
+            Graphics G = this.CreateGraphics();
+            m_chatLog.addChat(message, false, G);
+            G.Dispose();
             if (!BtnChatMemManager.getInstance().dicFormList.ContainsKey(IDForCheck))
             {
                 unCheckedMsg++;
@@ -520,17 +524,15 @@ namespace CustomButton
             {
                 BtnChatMemManager.getInstance().dicFormList[this.IDForCheck].Refresh();
             }
-
         }
+
 
 
         public void sendMsg(string message)
         {
-
-            chatingLog data = new chatingLog();
-            data.isME = false;
-            data.msg = message;
-            m_chatLog.Add(data);
+            Graphics G = this.CreateGraphics();
+            m_chatLog.addChat(message, true, G);
+            G.Dispose();
         }
 
 
@@ -568,8 +570,8 @@ namespace CustomButton
             {
                 //lstCprofile.Add(new ProFileEX(new Size(300, 50), new Point(0, 50 * cnt + 1), name, this));
                 int cnt = BtnChatMemManager.getInstance().dicChatList.Count;
-                Form chatroom = new ChatRoomForm(key);
                 ChatLstButton btn = new ChatLstButton(new Size(m_parent.Width, 50), new Point(0, 50 * cnt), key, m_parent);
+                Form chatroom = new ChatRoomForm(key, btn.m_chatLog);
                 chatroom.Show();
                 BtnChatMemManager.getInstance().dicChatList.Add(key, btn);
                 BtnChatMemManager.getInstance().dicFormList.Add(key, chatroom);
@@ -580,33 +582,40 @@ namespace CustomButton
     }
 
 
-    class showLetters 
+    class showLetters
     {
         delegate void drawcall(SizeF sz);
         // 말풍선 그리는 함수
-        drawcall m_drawcall;
         string m_text;
         int m_width;
         Point Loc;
 
-        public showLetters(int width, string text,Point location)
+        public showLetters(int width, string text, Point location)
         {
             Loc = location;
             m_width = width;
             m_text = text;
         }
 
-        public void OppoMsgOnPaint(PaintEventArgs e,Font font)
+        public int getHeight(Graphics G)
         {
-            Graphics G = e.Graphics;
-            SizeF sz =G.MeasureString(m_text, font, m_width);
-            //m_drawcall(sz);
-            G.FillRectangle(Brushes.Yellow, new Rectangle(this.Loc, new Size((int)sz.Width,(int)sz.Height)));
+            Font f = new Font("Cambria", 10);
+            SizeF sz = G.MeasureString(m_text, f, m_width);
+            int result =  (int)sz.Height;
 
-            G.DrawString(m_text, font, Brushes.Black, new RectangleF(this.Loc,sz));
+            f.Dispose();
+            return result;
         }
 
-        public void myMsgOnpaint(PaintEventArgs e , Font font)
+        public void OppoMsgOnPaint(PaintEventArgs e, Font font)
+        {
+            Graphics G = e.Graphics;
+            SizeF sz = G.MeasureString(m_text, font, m_width);
+            G.FillRectangle(Brushes.Yellow, new Rectangle(this.Loc, new Size((int)sz.Width, (int)sz.Height)));
+            G.DrawString(m_text, font, Brushes.Black, new RectangleF(this.Loc, sz));
+        }
+
+        public void myMsgOnpaint(PaintEventArgs e, Font font)
         {
             Graphics G = e.Graphics;
             SizeF sz = G.MeasureString(m_text, font, m_width);
@@ -616,6 +625,45 @@ namespace CustomButton
         }
     }
 
+    class chatList
+    {
+        Point startPT = new Point(55, 50);
+        List<chatingLog> m_chatLog;
+        public chatList()
+        {
+            m_chatLog = new List<chatingLog>();
+        }
+
+        public void addChat(string text, bool isME, Graphics G)
+        {
+            chatingLog data = new chatingLog();
+            data.isME = isME;
+            data.msg = text;
+            //isME == true 내가 보내는거  false 내가 받는거
+            //test = new showLetters(200, "ㅁㄴㄹㄴㅁㄻㄴㄹㄴㅁㄻㄴㄻㄴㄹㄴㅁㄻㄴㄹㄴㅁㄹㄴㅁㄹㄴㅁㄻㄴ", new Point(55,50 ));
+            //test = new showLetters(200, "ㅁㄴㄹㄴㅁㄻ12555555555555555555555555555555125125ㄴㄹㄴ", new Point(55, 50));
+            data.showLetter = new showLetters(200, text, startPT);
+            int height = data.showLetter.getHeight(G);
+            startPT.Y += height + 10;
+            m_chatLog.Add(data);
+        }
+
+
+        public void drawChatballons(PaintEventArgs e , Font f)
+        {
+            for(int i = 0; i <m_chatLog.Count;i++)
+            {
+                if(m_chatLog[i].isME)
+                {
+                    m_chatLog[i].showLetter.myMsgOnpaint(e,f);
+                }
+                else
+                {
+                    m_chatLog[i].showLetter.OppoMsgOnPaint(e, f);
+                }
+            }
+        }
+    }
 
 
 
