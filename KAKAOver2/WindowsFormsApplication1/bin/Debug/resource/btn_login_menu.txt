@@ -1,0 +1,1 @@
+path:resource\\btn_login_menu.png,sImg:72X18,sSpr:18X18,enter:1,leave:0,clicked:3

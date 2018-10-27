@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 using System.Net.Sockets;
 using System.Net;
 using System.Runtime.InteropServices;
@@ -65,7 +65,27 @@ namespace sockTest
         }
 
 
-       static void getMSG(int headsize, NetworkStream stream, Byte[] buff,int buffsize)
+        static public void getmsgfromcli(object stream1)
+        {
+
+            NetworkStream stream = (NetworkStream)stream1;
+            while (true)
+            {
+                Byte[] end = new Byte[4];
+
+                int cnt;
+                cnt = stream.Read(end, 0, 3);
+
+                if (cnt == 0)
+                {
+                    return;
+                }
+            }
+        }
+
+
+
+        static void getMSG(int headsize, NetworkStream stream, Byte[] buff,int buffsize)
         {
             int cnt = 0;
             while (cnt < 8)
@@ -90,6 +110,8 @@ namespace sockTest
         }
     }
 
+
+    
 
     
 }

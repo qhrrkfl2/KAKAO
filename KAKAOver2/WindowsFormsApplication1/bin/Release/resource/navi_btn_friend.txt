@@ -1,0 +1,1 @@
+path:resource\\navi_btn_friend.png,sImg:360X45,sSpr:45X45,enter:0,leave:2,clicked:1

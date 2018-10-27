@@ -522,7 +522,17 @@ namespace CustomButton
             }
             else
             {
-                BtnChatMemManager.getInstance().dicFormList[this.IDForCheck].Refresh();
+                ChatRoomForm form = (ChatRoomForm)BtnChatMemManager.getInstance().dicFormList[this.IDForCheck];
+                if(form.InvokeRequired)
+                {
+                    form.Invoke((MethodInvoker)delegate() { form.Refresh(); });
+                }
+                else
+                {
+                    form.Refresh();
+                }
+
+                
             }
         }
 
