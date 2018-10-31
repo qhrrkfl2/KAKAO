@@ -284,9 +284,27 @@ namespace CustomButton
             this.GetIdxSize(int.Parse(metadata["leave"]));
             this.Refresh();
         }
-
-
     }
+
+
+    public class TbChatlstBtn : SButton
+    {
+        public int uncheckedmsg = 0;
+        public TbChatlstBtn(string Data, int initX, int initY)
+            :base(Data, initX, initY)
+        {
+
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            if(uncheckedmsg > 0)
+            HelperFunc.DrawCircleNumInIt(new Point(15,15), this.Width/2, uncheckedmsg, e.Graphics);
+
+        }
+    }
+
 
 
     public class SizeimgButton : SButton
@@ -501,17 +519,19 @@ namespace CustomButton
             // 폼이 죽을때 리스트에서도 없어져야함 ㅇㅇ..
             if (BtnChatMemManager.getInstance().dicFormList.ContainsKey(key))
             {
-                BtnChatMemManager.getInstance().dicFormList[key].Focus();
+                BtnChatMemManager.getInstance().dicFormList[key].Show();
             }
             else
             {
                 BtnChatMemManager.getInstance().dicFormList.Add(key, new ChatRoomForm(key, m_chatLog));
             }
+
+            ((profileForm.ProfileForm)Parent).uncheckedMsg -= this.unCheckedMsg;
         }
 
         public void getMsg(string message)
         {
-            
+
             Graphics G = this.CreateGraphics();
             m_chatLog.addChat(message, false, G);
             G.Dispose();
@@ -523,16 +543,16 @@ namespace CustomButton
             else
             {
                 ChatRoomForm form = (ChatRoomForm)BtnChatMemManager.getInstance().dicFormList[this.IDForCheck];
-                if(form.InvokeRequired)
+                if (form.InvokeRequired)
                 {
-                    form.Invoke((MethodInvoker)delegate() { form.Refresh(); });
+                    form.Invoke((MethodInvoker)delegate () { form.Refresh(); });
                 }
                 else
                 {
                     form.Refresh();
                 }
 
-                
+
             }
         }
 
@@ -611,7 +631,7 @@ namespace CustomButton
         {
             Font f = new Font("Cambria", 10);
             SizeF sz = G.MeasureString(m_text, f, m_width);
-            int result =  (int)sz.Height;
+            int result = (int)sz.Height;
 
             f.Dispose();
             return result;
@@ -659,13 +679,13 @@ namespace CustomButton
         }
 
 
-        public void drawChatballons(PaintEventArgs e , Font f)
+        public void drawChatballons(PaintEventArgs e, Font f)
         {
-            for(int i = 0; i <m_chatLog.Count;i++)
+            for (int i = 0; i < m_chatLog.Count; i++)
             {
-                if(m_chatLog[i].isME)
+                if (m_chatLog[i].isME)
                 {
-                    m_chatLog[i].showLetter.myMsgOnpaint(e,f);
+                    m_chatLog[i].showLetter.myMsgOnpaint(e, f);
                 }
                 else
                 {
@@ -730,6 +750,20 @@ namespace CustomButton
 
             Point result = new Point((int)x, (int)y);
             return result;
+        }
+
+        // G의 삭제를 보장안한다 caller가 G의 삭제를 보장해야함.
+        static public void DrawCircleNumInIt(Point loc, int diameter, int numInIt, Graphics G)
+        {
+
+            G.FillEllipse(Brushes.Red, loc.X, loc.Y, diameter, diameter);
+            using (Font f = new Font("Arial", 10))
+            {
+                Point v = HelperFunc.getLinearPercentage(new Point(loc.X, loc.Y ), new Point(loc.X + diameter, loc.Y + diameter),0.5f);
+                v.X += loc.X-5;
+                v.Y += loc.Y-3;
+                G.DrawString(numInIt.ToString(),f,Brushes.White,v);
+            }
         }
 
 

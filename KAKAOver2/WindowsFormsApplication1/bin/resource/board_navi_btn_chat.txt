@@ -1,1 +1,0 @@
-path:resource\\board_navi_btn_chat.png,sImg:360X45,sSpr:45X45,enter:0,leave:2,clicked:1

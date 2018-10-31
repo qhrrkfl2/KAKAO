@@ -28,9 +28,9 @@ namespace profileForm
         NetworkStream stream;
         Panel Pn_tab;
         SButton bn_profile;
-        SButton bn_chat;
+        TbChatlstBtn bn_chat;
         Control bn_createBTN;
-
+        public int uncheckedMsg = 0;
 
         public ProfileForm()
         {
@@ -45,7 +45,7 @@ namespace profileForm
             this.Pn_tab.Size = new Size(this.Size.Width, this.Size.Height - 60);
             this.Pn_tab.BackColor = Color.White;
             bn_profile = new SButton("resource\\navi_btn_friend.txt", 1, 55);
-            bn_chat = new SButton("resource\\board_navi_btn_chat.txt", 46, 55);
+            bn_chat = new TbChatlstBtn("resource\\board_navi_btn_chat.txt", 46, 55);
             bn_chat.setforChatButton();
             bn_profile.setforChatButton();
             bn_profile.MouseClick += new System.Windows.Forms.MouseEventHandler(this.ChatMouseBtnClicked);
@@ -86,24 +86,33 @@ namespace profileForm
         }
 
 
-        public void AddButton(string key)
+        public void AddButton(string key,string msg)
         {
             if (this.InvokeRequired)
             {
-                this.Invoke((MethodInvoker)delegate { AddButton(key); });
+                this.Invoke((MethodInvoker)delegate { AddButton(key,msg); });
             }
             else
             {
                 int cnt = BtnChatMemManager.getInstance().dicChatList.Count;
-                BtnChatMemManager.getInstance().dicChatList.Add(key, new ChatLstButton(new Size(this.Width, 50), new Point(0, 50 * cnt), key, this));
+                ChatLstButton btn = new ChatLstButton(new Size(this.Width, 50), new Point(0, 50 * cnt), key, this);
+                BtnChatMemManager.getInstance().dicChatList.Add(key, btn);
+                btn.getMsg(msg);
             }
         }
 
+        public void refreshGui()
+        {
+            bn_chat.uncheckedmsg = this.uncheckedMsg;
+            if (this.InvokeRequired)
+                this.Invoke((MethodInvoker)delegate { this.Refresh(); });
+            else
+                this.Refresh();
+        }
 
 
         private void closing(object sender, FormClosingEventArgs e)
         {
-
             e.Cancel = false;
             this.stream.Close();
             this.connection.Close();
@@ -139,6 +148,13 @@ namespace profileForm
                     Pn_tab.Controls.Add(entry.Value);
                 }
             }
+        }
+
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+
         }
 
 
@@ -313,10 +329,10 @@ namespace profileForm
                     string strmsg = Encoding.Unicode.GetString(m_field, m_rear + 1 + m_headsize, (int)head.msgsize - m_headsize);
                     subData((int)head.msgsize);
 
-                    string[] tok = strmsg.Split(' ');
-                    string Id = tok[0];
-                    string msg = tok[1];
-
+                    int indexof = strmsg.IndexOf(' ');
+                    string Id = strmsg.Substring(0, indexof);
+                    string msg = strmsg.Substring(indexof);
+                    ProfileForm profile = (ProfileForm)BtnChatMemManager.getInstance().dicFormList["profileForm"];
                     if (BtnChatMemManager.getInstance().dicProfileList.ContainsKey(Id))
                     {
 
@@ -328,12 +344,26 @@ namespace profileForm
                     }
                     else
                     {
-                        ProfileForm profile = (ProfileForm)BtnChatMemManager.getInstance().dicFormList["profileForm"];
-                        if (profile.InvokeRequired)
+                        if (BtnChatMemManager.getInstance().dicChatList.ContainsKey(Id))
                         {
-                            profile.Invoke((MethodInvoker)delegate { profile.AddButton(Id); });
+                            ChatLstButton btn = ((ChatLstButton)BtnChatMemManager.getInstance().dicChatList[Id]);
+                            if (btn.InvokeRequired)
+                                btn.Invoke(btn.myDelegate, msg);
+                            else
+                                btn.getMsg(msg);
                         }
+                        else
+                        {
+                        
+                            if (profile.InvokeRequired)
+                            {
+                                profile.Invoke((MethodInvoker)delegate { profile.AddButton(Id, msg); });
+                            }
+                        }
+                            
                     }
+                    profile.uncheckedMsg++;
+                    profile.refreshGui();
                 }
 
             }
@@ -363,9 +393,11 @@ namespace profileForm
             // 버그!!버퍼가 터질수있는 위험성이 있음.
             public void getMsgFromStream(NetworkStream stream)
             {
-
-                getData(stream);
-                processData();
+                while (true)
+                {
+                    getData(stream);
+                    processData();
+                }
 
                 // 1. 메세지 처리시 끝일수도있음 -> gethead시 에러
                 // 2. 메세지 처리후 헤더를 끝까지 못 받았을수도 있음 -> get head시 에러
