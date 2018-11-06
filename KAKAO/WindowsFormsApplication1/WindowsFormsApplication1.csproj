@@ -73,7 +73,9 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Class1.cs" />
-    <Compile Include="profileForm.cs" />
+    <Compile Include="profileForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Join.cs">
       <SubType>Form</SubType>
     </Compile>

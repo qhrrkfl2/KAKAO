@@ -47,19 +47,16 @@ namespace chatRoomForm
             pn_chat.BackColor = Color.White;
 
             pn_chat.Controls.Add(rtb_chat);
-            
-            // do get messages here
-            //test = new showLetters(200, "ㅁㄴㄹㄴㅁㄻㄴㄹㄴㅁㄻㄴㄻㄴㄹㄴㅁㄻㄴㄹㄴㅁㄹㄴㅁㄹㄴㅁㄻㄴ", new Point(55,50 ));
-            test = new showLetters(200, "ㅁㄴㄹㄴㅁㄻ12555555555555555555555555555555125125ㄴㄹㄴ", new Point(55, 50));
-            
-            // 상대방적정 수치 width 200, 인덴트 55,50
-            //  얘의 길이 최대치는 width에서 결정남. 근데 뒤로 당겨짐
-            // 내 적정 수치 width 200 , 인덴트 55,50
-            // 애도 width에서 결정남 근데 앞쪽으로 당겨짐.
-
+            this.FormClosing += new FormClosingEventHandler(onClosing);
             this.Controls.Add(bt_send);
             this.Controls.Add(pn_chat);
         }
+
+        void onClosing( object sender, FormClosingEventArgs e  )
+        {
+            BtnChatMemManager.getInstance().dicFormList.Remove(this.key);
+        }
+
 
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -75,7 +72,6 @@ namespace chatRoomForm
             {
                 datasend();
                 e.Handled = true;
-                
             }
         }
 

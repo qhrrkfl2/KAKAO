@@ -195,7 +195,6 @@ namespace KakaoForm
         //loginclicked
         void btnLoginClicked(object sender , MouseEventArgs e)
         {
-            // do something
             TcpClient tcpClient = new TcpClient(server, 7000);
             NetworkStream stream = tcpClient.GetStream();
             string id  = tbx_ID.Text;

@@ -2,6 +2,12 @@
 
 
 
+
+//// Set login timeout to 5 seconds
+//SQLSetConnectAttr(hdbc, SQL_LOGIN_TIMEOUT, (SQLPOINTER)5, 0);
+//CHECK_ERROR(retcode, "SQLSetConnectAttr(SQL_LOGIN_TIMEOUT)",
+//	hdbc, SQL_HANDLE_DBC);
+
 void Query::print(char * result)
 {
 	cout << result << endl;
@@ -114,6 +120,66 @@ bool Query::LoginProcess(wchar_t * id, wchar_t * pass)
 	}
 	
 	return retcode;
+}
+
+bool Query::SendPendingMsg(wchar_t * id, wchar_t * msg)
+{
+
+	//exec StoreMSG @varID = 'qhrrkfl', @msg = '214124214421'
+	//exec getPDMSG @varID = 'qhrrkfl'
+	//https://docs.microsoft.com/en-us/sql/relational-databases/native-client-odbc-stored-procedures/calling-a-stored-procedure?view=sql-server-2017
+	bool retcode = false;
+	wstring strId = id;
+	wstring strMsg = msg;
+	SQLHANDLE SPMHandle;
+	if (SQL_SUCCESS != SQLAllocHandle(SQL_HANDLE_STMT, SQLConnectionHandle, &SPMHandle));
+	{
+		this->showSQLError(SQL_HANDLE_STMT, SPMHandle);
+	}
+	SQLINTEGER SQLINTid = SQL_NTS;
+	
+
+	SQLPrepareW(SPMHandle, (SQLWCHAR*)L"{CALL StoreMSG(?, ?)}", SQL_NTS);
+	SQLBindParameter(SPMHandle, 1, SQL_PARAM_INPUT, SQL_WCHAR, SQL_CHAR, 12, 0, (SQLWCHAR*)strId.data(), strId.length()*2, &SQLINTid);
+	SQLBindParameter(SPMHandle, 2, SQL_PARAM_INPUT, SQL_WCHAR, SQL_CHAR, 256, 0, (SQLWCHAR*)strMsg.data(), strMsg.length()*2 , &SQLINTid);
+
+	if (SQL_SUCCESS != SQLExecute(SPMHandle))
+	{
+		this->showSQLError(SQL_HANDLE_STMT, SPMHandle);
+	}
+	else
+	{
+		retcode = true;
+	}
+	SQLCloseCursor(SPMHandle);
+	SQLFreeHandle(SQL_HANDLE_STMT, SPMHandle);
+	return retcode;
+}
+
+void Query::getPendingMsg(wchar_t * id, vector<MSGData>* container)
+{
+	wstring strId = id;
+	SQLHANDLE HGPMsg;
+	SQLAllocHandle(SQL_HANDLE_STMT, SQLConnectionHandle, &HGPMsg);
+
+	SQLPrepareW(HGPMsg, (SQLWCHAR*)L"{CALL GetMSGandDelete(?)}", SQL_NTS);
+	SQLINTEGER SQLNTS = SQL_NTS;
+	SQLBindParameter(HGPMsg, 1, SQL_PARAM_INPUT, SQL_WCHAR, SQL_CHAR, 12, 0, (SQLWCHAR*)strId.data(), strId.length() * 2, &SQLNTS);
+
+	if (SQL_SUCCESS != SQLExecute(HGPMsg))
+	{
+		this->showSQLError(SQL_HANDLE_STMT,HGPMsg);
+	}
+	MSGData data;
+	while (SQLFetch(HGPMsg)==SQL_SUCCESS)
+	{
+		SQLGetData(HGPMsg, 1, SQL_C_WCHAR, &data.id, sizeof(data.id), NULL);
+		SQLGetData(HGPMsg, 3, SQL_C_WCHAR, &data.msg, sizeof(data.msg), NULL);
+		container->push_back(data);
+	}
+
+	SQLCloseCursor(HGPMsg);
+	SQLFreeHandle(SQL_HANDLE_STMT, HGPMsg);
 }
 
 wstring Query::getFriendList(wchar_t * id)

@@ -11,7 +11,8 @@
 #include <sql.h>
 #include <sqlext.h>
 #include <sqltypes.h>
-
+#include <vector>
+#include "struct.h"
 using namespace std;
 
 class Query
@@ -21,6 +22,7 @@ class Query
 	SQLHANDLE SQLStatementHandle;
 	SQLHANDLE SQLStatementLogin;
 	SQLHANDLE SQLStatementGetFriend;
+	SQLHANDLE SQLstmSendPendingMsg;
 	SQLRETURN retCode;
 	wchar_t* tablename;
 	
@@ -31,6 +33,8 @@ public:
 	bool checkId(wchar_t* id);
 	bool JoinProcess(wchar_t* id, wchar_t* pass);
 	bool LoginProcess(wchar_t* id, wchar_t* pass);
+	bool SendPendingMsg(wchar_t* id, wchar_t* msg);
+	void getPendingMsg(wchar_t* id, vector<MSGData>* container);
 	wstring getFriendList(wchar_t* id);
 	Query();
 	~Query();

@@ -151,6 +151,7 @@
   <ItemGroup>
     <ClInclude Include="myHash.h" />
     <ClInclude Include="Query.h" />
+    <ClInclude Include="struct.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="iocp.cpp" />

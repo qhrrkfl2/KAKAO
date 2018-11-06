@@ -24,6 +24,9 @@
     <ClInclude Include="myHash.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="struct.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="iocp.cpp">

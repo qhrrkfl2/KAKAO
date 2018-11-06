@@ -36,6 +36,8 @@ namespace CustomButton
         public Dictionary<string, Control> dicChatList;
         public Dictionary<string, Control> dicProfileList;
         public Dictionary<string, Form> dicFormList;
+        private static readonly object padlock = new object();
+
 
         BtnChatMemManager()
         {
@@ -48,7 +50,14 @@ namespace CustomButton
         {
             if (instance == null)
             {
-                instance = new BtnChatMemManager();
+                // 모니터 클래스를 쓰는것과 같다. lock block을 빠져나가는 순간 락이 풀린다.
+                lock (padlock)
+                {
+                    if (instance == null)
+                    {
+                        instance = new BtnChatMemManager();
+                    }
+                }
             }
             return instance;
         }
@@ -301,7 +310,6 @@ namespace CustomButton
             base.OnPaint(e);
             if(uncheckedmsg > 0)
             HelperFunc.DrawCircleNumInIt(new Point(15,15), this.Width/2, uncheckedmsg, e.Graphics);
-
         }
     }
 
@@ -523,12 +531,22 @@ namespace CustomButton
             }
             else
             {
-                BtnChatMemManager.getInstance().dicFormList.Add(key, new ChatRoomForm(key, m_chatLog));
+                ChatRoomForm NForm = new ChatRoomForm(key, m_chatLog);
+                NForm.Show();
+                BtnChatMemManager.getInstance().dicFormList.Add(key, NForm);
             }
-
-            ((profileForm.ProfileForm)Parent).uncheckedMsg -= this.unCheckedMsg;
+            profileForm.ProfileForm f = (profileForm.ProfileForm)m_parent;
+            f.uncheckedMsg -= this.unCheckedMsg;
+            if(f.InvokeRequired)
+            {
+                m_parent.Invoke((MethodInvoker)delegate { f.refreshGui(); });
+            }
+            else
+            {
+                f.refreshGui();
+            }
         }
-
+        // recieve event 연쇄
         public void getMsg(string message)
         {
 
@@ -594,7 +612,15 @@ namespace CustomButton
 
             if (BtnChatMemManager.getInstance().dicChatList.ContainsKey(key))
             {
-                BtnChatMemManager.getInstance().dicFormList[key].Focus();
+                ChatLstButton btn = (ChatLstButton)BtnChatMemManager.getInstance().dicChatList[key];
+                if (BtnChatMemManager.getInstance().dicFormList.ContainsKey(key))
+                    BtnChatMemManager.getInstance().dicFormList[key].Focus();
+                else
+                {
+                    Form chatroom = new ChatRoomForm(key, btn.m_chatLog);
+                    chatroom.Show();
+                }
+
             }
             else
             {

@@ -182,6 +182,14 @@ namespace profileForm
                 cnt++;
             }
 
+            ByteField requestPendingMSg = new ByteField(8);
+
+            TcpHeader head = new TcpHeader();
+            head.mode = 400;
+            head.msgsize = 8;
+
+            requestPendingMSg.setHeader(head);
+            stream.Write(requestPendingMSg.m_field, 0, 8);
 
             Thread recv = new Thread(new ThreadStart(takeMsgFromServ));
             Thread send = new Thread(new ThreadStart(sendMsgToServ));
@@ -326,21 +334,35 @@ namespace profileForm
                     {
                         break;
                     }
+
                     string strmsg = Encoding.Unicode.GetString(m_field, m_rear + 1 + m_headsize, (int)head.msgsize - m_headsize);
                     subData((int)head.msgsize);
 
                     int indexof = strmsg.IndexOf(' ');
                     string Id = strmsg.Substring(0, indexof);
                     string msg = strmsg.Substring(indexof);
+
+                    if (head.mode == 301)
+                        msg.TrimEnd(' ');
+
                     ProfileForm profile = (ProfileForm)BtnChatMemManager.getInstance().dicFormList["profileForm"];
                     if (BtnChatMemManager.getInstance().dicProfileList.ContainsKey(Id))
                     {
-
-                        ChatLstButton btn = ((ChatLstButton)BtnChatMemManager.getInstance().dicChatList[Id]);
-                        if (btn.InvokeRequired)
-                            btn.Invoke(btn.myDelegate, msg);
+                        if (BtnChatMemManager.getInstance().dicChatList.ContainsKey(Id))
+                        {
+                            ChatLstButton btn = ((ChatLstButton)BtnChatMemManager.getInstance().dicChatList[Id]);
+                            if (btn.InvokeRequired)
+                                btn.Invoke(btn.myDelegate, msg);
+                            else
+                                btn.getMsg(msg);
+                        }
                         else
-                            btn.getMsg(msg);
+                        {
+                            if (profile.InvokeRequired)
+                            {
+                                profile.Invoke((MethodInvoker)delegate { profile.AddButton(Id, msg); });
+                            }
+                        }
                     }
                     else
                     {
